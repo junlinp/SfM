@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.14)
+project(SfM)
+
+set(CMAKE_CXX_STANDARD 14)
+include_directories(/usr/local/Cellar/opencv/4.1.0_2/include/opencv4)
+include_directories(src)
+find_package(OpenCV REQUIRED)
+find_package(Ceres REQUIRED)
+find_package(gtest REQUIRED)
+add_executable(SfM main.cpp src/feature_extractor.cc src/feature_extractor.hpp src/database.cc src/database.hpp src/unittest.hpp src/descriptor.cc src/descriptor.hpp src/keypoint.hpp src/camera_model.hpp src/image.cc src/image.hpp)
+target_link_libraries(SfM ${OpenCV_LIBS} ${CERES_LIBRARIES} ${GTEST_LIBRARIES} sqlite3 )
