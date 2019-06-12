@@ -40,10 +40,19 @@ public:
     void set_image_id(int id);
 
     std::string get_name();
+    void SetName(std::string name);
 
-    double* get_qvec();
-    double* get_tvec();
+    double* GetQvec();
+    double* GetTvec();
 
+    int GetWidth();
+    int GetHeight();
+
+    void SetWidth(int width);
+    void SetHeight(int height);
+
+    bool equals(image* img);
+    bool equals(image img);
     ~image();
 };
 

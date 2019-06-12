@@ -12,7 +12,7 @@ database::database(std::string name) {
 }
 bool database::create() {
   const char* sql = "CREATE TABLE t_camera("
-                    "id integer AUTO_INCREMENT,"
+                    "id INTEGER NOT NULL,"
                     "camera_model integer,"
                     "camera_param_num integer,"
                     "camera_param blob,"
@@ -25,7 +25,7 @@ bool database::create() {
     return false;
   }
   sql = "CREATE TABLE t_image("
-        "id integer AUTO_INCREMENT,"
+        "id INTEGER NOT NULL,"
         "qw double,"
         "qx double,"
         "qy double,"
@@ -35,6 +35,8 @@ bool database::create() {
         "tz double,"
         "camera_id integer,"
         "name varchar(128),"
+        "width integer,"
+        "height integer,"
         "PRIMARY KEY(id)"
         ")";
   rc = sqlite3_exec(sqlite_handle, sql, NULL, NULL, &errmsg);
@@ -43,7 +45,7 @@ bool database::create() {
     return false;
   }
   sql = "CREATE TABLE t_keypoint("
-        "id integer AUTO_INCREMENT,"
+        "id INTEGER NOT NULL,"
         "image_id integer,"
         "idx integer,"
         "x double,"
@@ -56,7 +58,7 @@ bool database::create() {
     return false;
   }
   sql = "CREATE TABLE t_descript("
-        "id integer AUTO_INCREMENT,"
+        "id INTEGER NOT NULL,"
         "image_id integer,"
         "idx integer,"
         "width integer,"
@@ -73,4 +75,47 @@ bool database::create() {
 }
 database::~database() {
   sqlite3_close(this->sqlite_handle);
+}
+std::shared_ptr<image> database::GetImageById(int id) {
+
+  sqlite3_stmt* stmt = nullptr;
+  int rc = sqlite3_prepare_v2(sqlite_handle, "SELECT qw,qx,qy,qz,tx,ty,tz,camera_id, name, width, height from t_image where id = ?", -1, &stmt, nullptr);
+
+  if (rc != SQLITE_OK) {
+    fprintf(stderr, "%s\n", sqlite3_errmsg(sqlite_handle));
+    return std::shared_ptr<image>(nullptr);
+  }
+
+  rc = sqlite3_bind_int(stmt, 1, id);
+  if (rc != SQLITE_OK) {
+    fprintf(stderr, "%s\n", sqlite3_errmsg(sqlite_handle));
+    return std::shared_ptr<image>(nullptr);
+  }
+
+  rc = sqlite3_step(stmt);
+
+  if (rc != SQLITE_ROW) {
+    fprintf(stderr, "%s\n", sqlite3_errmsg(sqlite_handle));
+    return std::shared_ptr<image>(nullptr);
+
+  }
+
+  auto img = std::make_shared<image>();
+
+  img->GetQvec()[0] = sqlite3_column_double(stmt, 0);
+  img->GetQvec()[1] = sqlite3_column_double(stmt, 1);
+  img->GetQvec()[2] = sqlite3_column_double(stmt, 2);
+  img->GetQvec()[3] = sqlite3_column_double(stmt, 3);
+
+  img->GetTvec()[0] = sqlite3_column_double(stmt, 4);
+  img->GetTvec()[1] = sqlite3_column_double(stmt, 5);
+  img->GetTvec()[2] = sqlite3_column_double(stmt, 6);
+
+  img->set_camera_id( sqlite3_column_int(stmt, 7));
+  img->SetName( std::string( (const char*)(sqlite3_column_text(stmt, 8))));
+
+  img->SetWidth(sqlite3_column_int(stmt, 9));
+  img->SetHeight(sqlite3_column_int(stmt, 10));
+
+  return img;
 }

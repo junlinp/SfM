@@ -78,24 +78,28 @@ int main(int argc, char** argv) {
   bool rc = ptr_database->create();
   std::shared_ptr<image> img = std::make_shared<image>();
   rc = img->load_image("Img/100_7100.JPG");
-  rc = ptr_database->insert_image(img->get_name(), img->get_keypoints(), img->get_descriptors(), simple_pinhole_camera_model());
+  rc = ptr_database->insert_image(img, simple_pinhole_camera_model());
 
   rc = img->load_image("Img/100_7101.JPG");
-  rc = ptr_database->insert_image(img->get_name(), img->get_keypoints(), img->get_descriptors(), simple_pinhole_camera_model());
+  rc = ptr_database->insert_image(img, simple_pinhole_camera_model());
 
   rc = img->load_image("Img/100_7102.JPG");
-  rc = ptr_database->insert_image(img->get_name(), img->get_keypoints(), img->get_descriptors(), simple_pinhole_camera_model());
+  rc = ptr_database->insert_image(img, simple_pinhole_camera_model());
 
   rc = img->load_image("Img/100_7103.JPG");
-  rc = ptr_database->insert_image(img->get_name(), img->get_keypoints(), img->get_descriptors(), simple_pinhole_camera_model());
+  rc = ptr_database->insert_image(img, simple_pinhole_camera_model());
+
   rc = img->load_image("Img/100_7104.JPG");
-  rc = ptr_database->insert_image(img->get_name(), img->get_keypoints(), img->get_descriptors(), simple_pinhole_camera_model());
+  rc = ptr_database->insert_image(img, simple_pinhole_camera_model());
+
   rc = img->load_image("Img/100_7105.JPG");
-  rc = ptr_database->insert_image(img->get_name(), img->get_keypoints(), img->get_descriptors(), simple_pinhole_camera_model());
+  rc = ptr_database->insert_image(img, simple_pinhole_camera_model());
+
   rc = img->load_image("Img/100_7106.JPG");
-  rc = ptr_database->insert_image(img->get_name(), img->get_keypoints(), img->get_descriptors(), simple_pinhole_camera_model());
+  rc = ptr_database->insert_image(img, simple_pinhole_camera_model());
+
   rc = img->load_image("Img/100_7107.JPG");
-  rc = ptr_database->insert_image(img->get_name(), img->get_keypoints(), img->get_descriptors(), simple_pinhole_camera_model());
+  rc = ptr_database->insert_image(img, simple_pinhole_camera_model());
 
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

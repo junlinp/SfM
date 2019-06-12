@@ -18,6 +18,7 @@ bool image::load_image(std::string path)
 
     this->width = img.cols;
     this->height = img.rows;
+
     size_t rindex = path.rfind("/");
     this->name = path.substr(rindex + 1);
     this->path = path;
@@ -77,10 +78,10 @@ void image::set_camera_id(int id) {
 void image::set_image_id(int id) {
   this->image_id = id;
 }
-double *image::get_qvec() {
+double *image::GetQvec() {
   return qvec;
 }
-double *image::get_tvec() {
+double *image::GetTvec() {
   return tvec;
 }
 std::string image::get_name() {
@@ -91,4 +92,36 @@ std::vector<std::shared_ptr<descriptor>> image::get_descriptors() {
 }
 std::vector<std::shared_ptr<keypoint>> image::get_keypoints() {
   return keypoint_ptr;
+}
+int image::GetWidth() {
+  return width;
+}
+int image::GetHeight() {
+  return height;
+}
+void image::SetWidth(int width) {
+  if (width >= 0)
+    this->width = width;
+  else {
+    fprintf(stderr, "Set a width with a value less then 0\n");
+  }
+}
+void image::SetHeight(int height) {
+  if (height >= 0) {
+    this->height = height;
+  } else {
+    fprintf(stderr, "Set a height with a value less then 0\n");
+  }
+
+}
+void image::SetName(std::string name) {
+  this->name = name;
+}
+bool image::equals(image *img) {
+  if (img == nullptr)
+    return false;
+
+  bool res = this->name == img->name;
+  return true;
+
 }

@@ -10,6 +10,8 @@
 #include "keypoint.hpp"
 #include "camera_model.hpp"
 #include <vector>
+#include "image.hpp"
+
 class database {
 
  private:
@@ -20,10 +22,14 @@ class database {
   bool created();
   bool create();
   template<class Camera_Model>
-  bool insert_image(std::string name,
-                    std::vector<std::shared_ptr<keypoint>> kp,
-                    std::vector<std::shared_ptr<descriptor>> desc,
+  bool insert_image(std::shared_ptr<image> img,
                     Camera_Model camera_model) {
+    if (img == nullptr) {
+      return false;
+    }
+    const auto& kp = img->get_keypoints();
+    const auto& desc = img->get_descriptors();
+    const std::string name = img->get_name();
     // simple
     const char *sql = "INSERT INTO t_camera("
                       "camera_model,"
@@ -59,8 +65,8 @@ class database {
       return false;
     }
     sql = "INSERT INTO t_image("
-          "qw, qx, qy,qz, tx, ty,tz, camera_id, name)"
-          "VALUES(?,?,?,?,?,?,?,?,?)";
+          "qw, qx, qy,qz, tx, ty,tz, camera_id, name, width, height)"
+          "VALUES(?,?,?,?,?,?,?,?,?, ?, ?)";
     sqlite3_prepare_v2(this->sqlite_handle, sql, strlen(sql), &stmt, nullptr);
     sqlite3_bind_double(stmt, 1, 1.0);
     sqlite3_bind_double(stmt, 2, 0.0);
@@ -72,6 +78,9 @@ class database {
 
     sqlite3_bind_int(stmt, 8, camera_id);
     sqlite3_bind_text(stmt, 9, name.c_str(), int(name.size()), nullptr);
+    sqlite3_bind_int(stmt, 10, img->GetWidth());
+    sqlite3_bind_int(stmt, 11, img->GetHeight());
+
     sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
@@ -110,6 +119,11 @@ class database {
   }
 
   // TODO: load camera load image to match and insert the result into the database
+
+
+  std::shared_ptr<image> GetImageById(int id);
+
+  std::vector<std::shared_ptr<image>> GetImages();
 
   ~database();
 };
