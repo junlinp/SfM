@@ -116,6 +116,41 @@ std::shared_ptr<image> database::GetImageById(int id) {
 
   img->SetWidth(sqlite3_column_int(stmt, 9));
   img->SetHeight(sqlite3_column_int(stmt, 10));
+  sqlite3_finalize(stmt);
 
+  sqlite3_prepare_v2(sqlite_handle, "SELECT x, y from t_keypoint where image_id = ? ORDER BY idx ASC", -1, &stmt, nullptr);
+  sqlite3_bind_int(stmt, 1, id);
+
+  while( (rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+    auto kp = std::make_shared<keypoint>();
+    kp->x = sqlite3_column_int(stmt, 0);
+    kp->y = sqlite3_column_int(stmt, 1);
+    img->keypoint_push_back(kp);
+  }
+
+  if (SQLITE_DONE == rc) {
+    sqlite3_finalize(stmt);
+  } else {
+    fprintf(stderr, "%s\n", sqlite3_errmsg(sqlite_handle));
+    return nullptr;
+  }
+
+  sqlite3_prepare_v2(sqlite_handle, "SELECT width, bytes from t_descriptor where image_id = ? ORDER BY idx ASC", -1, &stmt, nullptr);
+  sqlite3_bind_int(stmt, 1, id);
+
+  while( (rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+    int width = sqlite3_column_int(stmt, 0);
+    const void* bytes = sqlite3_column_blob(stmt, 1);
+    auto des = std::make_shared<descriptor>((const float*)bytes, width);
+    img->descripotr_push_back(des);
+  }
+  if (SQLITE_DONE == rc) {
+    sqlite3_finalize(stmt);
+  } else {
+    fprintf(stderr, "%s\n", sqlite3_errmsg(sqlite_handle));
+    return nullptr;
+  }
+
+  sqlite3_finalize(stmt);
   return img;
 }

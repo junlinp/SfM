@@ -31,7 +31,11 @@ public:
     std::shared_ptr<keypoint> get_keypoint(int idx);
 
     std::vector<std::shared_ptr<descriptor>> get_descriptors();
-    std::vector<std::shared_ptr<keypoint>> get_keypoints();
+    std::vector<std::shared_ptr<keypoint>> GetKeyPoints();
+
+
+    void descripotr_push_back(std::shared_ptr<descriptor> descriptor);
+    void keypoint_push_back(std::shared_ptr<keypoint> keypoint);
 
     int get_camera_id();
     int get_image_id();
@@ -53,6 +57,7 @@ public:
 
     bool equals(image* img);
     bool equals(image img);
+
     ~image();
 };
 

@@ -101,6 +101,12 @@ int main(int argc, char** argv) {
   rc = img->load_image("Img/100_7107.JPG");
   rc = ptr_database->insert_image(img, simple_pinhole_camera_model());
 
+  //auto img1 = ptr_database->GetImageById(1);
+  //auto img2 = ptr_database->GetImageById(2);
+
+  //auto g = feature_match(img1->get_descriptors(), img2->get_descriptors());
+  //std::cout << g.size() << std::endl;
+
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

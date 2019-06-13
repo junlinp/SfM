@@ -27,7 +27,7 @@ class database {
     if (img == nullptr) {
       return false;
     }
-    const auto& kp = img->get_keypoints();
+    const auto& kp = img->GetKeyPoints();
     const auto& desc = img->get_descriptors();
     const std::string name = img->get_name();
     // simple

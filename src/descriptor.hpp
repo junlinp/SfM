@@ -40,6 +40,23 @@ public:
     float* data() {
       return vec;
     }
+    double distance(std::shared_ptr<descriptor> des) {
+      double res = 0.0;
+      for (int i = 0; i < _size; i++) {
+        double v = (this->vec[i] - des->vec[i]);
+        res += sqrt(v * v);
+      }
+      return res;
+    }
+
+    double distance(const descriptor& des) {
+      double res = 0.0;
+      for (int i = 0; i < _size; i++) {
+        double v = (this->vec[i] - des.vec[i]);
+        res += sqrt(v * v);
+      }
+      return res;
+    }
 };
 
 #endif //SFM_SRC_DESCRIPTOR_HPP_

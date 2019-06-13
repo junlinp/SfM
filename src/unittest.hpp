@@ -31,6 +31,9 @@ TEST(DATABASE, GetImageFromDataBase) {
   auto img_load = ptr_database->GetImageById(1);
   ASSERT_EQ(img->get_name(), img_load->get_name());
 
+  ASSERT_EQ(img->get_descriptors().size(), img_load->get_descriptors().size());
+  ASSERT_EQ(img->GetKeyPoints().size(), img_load->get_descriptors().size());
+
   system("rm database.db");
 }
 

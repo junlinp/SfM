@@ -90,7 +90,7 @@ std::string image::get_name() {
 std::vector<std::shared_ptr<descriptor>> image::get_descriptors() {
   return descriptor_ptr;
 }
-std::vector<std::shared_ptr<keypoint>> image::get_keypoints() {
+std::vector<std::shared_ptr<keypoint>> image::GetKeyPoints() {
   return keypoint_ptr;
 }
 int image::GetWidth() {
@@ -123,5 +123,12 @@ bool image::equals(image *img) {
 
   bool res = this->name == img->name;
   return true;
+
+}
+void image::descripotr_push_back(std::shared_ptr<descriptor> descriptor) {
+  this->descriptor_ptr.push_back(descriptor);
+}
+void image::keypoint_push_back(std::shared_ptr<keypoint> keypoint) {
+  this->keypoint_push_back(keypoint);
 
 }
