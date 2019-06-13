@@ -22,7 +22,7 @@ TEST(DATABASE, GetImageFromDataBase) {
   ASSERT_TRUE(rc);
 
   std::shared_ptr<image> img = std::make_shared<image>();
-  rc = img->load_image("Img/100_7100.JPG");
+  rc = img->load_image("../unittest/Img/100_7100.JPG");
   ASSERT_TRUE(rc);
 
   rc = ptr_database->insert_image(img, simple_pinhole_camera_model());
@@ -43,7 +43,7 @@ TEST(DATABASE, InsertImage) {
   ASSERT_TRUE(rc);
 
   std::shared_ptr<image> img = std::make_shared<image>();
-  rc = img->load_image("Img/100_7100.JPG");
+  rc = img->load_image("../unittest/Img/100_7100.JPG");
   ASSERT_TRUE(rc);
 
   rc = ptr_database->insert_image(img, simple_pinhole_camera_model());
@@ -82,7 +82,7 @@ TEST(DATABASE, InsertImage) {
 
 TEST(Image, LoadImage) {
   std::shared_ptr<image> img = std::make_shared<image>();
-  bool rc = img->load_image("Img/100_7100.JPG");
+  bool rc = img->load_image("../unittest/Img/100_7100.JPG");
   ASSERT_TRUE(rc);
   ASSERT_GT(img->get_features_num(), 0);
 }

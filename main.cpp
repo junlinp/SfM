@@ -74,6 +74,7 @@ int main(int argc, char** argv) {
   ceres::Solve(options, &problem, &summary);
   std::cout << summary.BriefReport() << std::endl;
   */
+  /*
   std::shared_ptr<database> ptr_database = std::make_shared<database>("database");
   bool rc = ptr_database->create();
   std::shared_ptr<image> img = std::make_shared<image>();
@@ -100,7 +101,7 @@ int main(int argc, char** argv) {
 
   rc = img->load_image("Img/100_7107.JPG");
   rc = ptr_database->insert_image(img, simple_pinhole_camera_model());
-
+  */
   //auto img1 = ptr_database->GetImageById(1);
   //auto img2 = ptr_database->GetImageById(2);
 
