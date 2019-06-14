@@ -9,8 +9,9 @@ RUN git clone https://github.com/junlinp/SfM.git
 WORKDIR /googletest
 RUN cmake . && make && make install
 
-WORKDIR /opencv
-RUN cmake . && make && make install
+RUN mkdir -p /opencv/build
+WORKDIR /opencv/build
+RUN cmake .. && make && make install
 
 WORKDIR /ceres-solver-1.14.0
 RUN cmake . && make -j3 && make install
