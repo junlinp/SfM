@@ -18,7 +18,7 @@ RUN cmake . && make -j3 && make install
 
 WORKDIR /SfM
 RUN mkdir -p /SfM/cmake-build-debug
-WORKDIR /Sfm/cmake-build-debug
+WORKDIR /SfM/cmake-build-debug
 RUN cmake ..
 RUN make
 
