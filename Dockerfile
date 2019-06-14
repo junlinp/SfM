@@ -1,8 +1,16 @@
 FROM ubuntu:16.04
 RUN apt-get update
-RUN apt-get install -y cmake make git libgoogle-glog-dev libatlas-base-dev libeigen3-dev libsuitesparse-dev
+RUN apt-get install -y cmake make git libgoogle-glog-dev libatlas-base-dev libeigen3-dev libsuitesparse-dev libsqlite3-dev
+RUN git clone https://github.com/google/googletest.git
+RUN git clone https://github.com/opencv/opencv.git
 RUN git clone https://ceres-solver.googlesource.com/ceres-solver
 RUN git clone https://github.com/junlinp/SfM.git
+WORKDIR /googletest
+RUN cmake . && make && make install
+
+WORKDIR /opencv
+RUN cmake . && make && make install
+
 WORKDIR /ceres-solver
 RUN cmake . && make -j3 && make install
 
