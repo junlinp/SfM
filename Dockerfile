@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 RUN apt-get update
-RUN apt-get install -y cmake make git libgoogle-glog-dev libatlas-base-dev libeigen3-dev libsuitesparse-dev libsqlite3-dev
+RUN apt-get install -y cmake make git libgoogle-glog-dev libatlas-base-dev libeigen3-dev libsuitesparse-dev libsqlite3-dev wget
 RUN git clone https://github.com/google/googletest.git
 RUN git clone https://github.com/opencv/opencv.git
 RUN wget http://ceres-solver.org/ceres-solver-1.14.0.tar.gz && tar zxf ceres-solver-1.14.0.tar.gz
