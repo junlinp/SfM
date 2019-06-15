@@ -9,6 +9,7 @@
 #include "database.hpp"
 #include "image.hpp"
 #include "sqlite3.h"
+#include <memory>
 
 TEST(DATABASE, Create_Database) {
   std::shared_ptr<database> ptr_database = std::make_shared<database>("database.db");

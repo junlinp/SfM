@@ -11,6 +11,7 @@
 #include "camera_model.hpp"
 #include <vector>
 #include "image.hpp"
+#include <memory>
 
 class database {
 

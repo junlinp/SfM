@@ -6,6 +6,7 @@
 #define SFM_SRC_IMAGE_HPP_
 #include "keypoint.hpp"
 #include "descriptor.hpp"
+#include <memory>
 
 class image {
 private:

@@ -6,7 +6,7 @@
 #define SFM_SRC_FEATURE_EXTRACTOR_HPP_
 #include "opencv2/core.hpp"
 #include "descriptor.hpp"
-
+#include <memory>
 class feature_extractor {
 
  public:

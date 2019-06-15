@@ -9,7 +9,7 @@ WORKDIR /googletest
 RUN cmake . && make && make install
 
 WORKDIR /ceres-solver-1.14.0
-RUN cmake . && make -j3 && make install
+RUN cmake . && make && make install
 
 WORKDIR /SfM
 RUN mkdir -p /SfM/cmake-build-debug
