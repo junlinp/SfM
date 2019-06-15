@@ -4,7 +4,7 @@
 
 #ifndef SFM_SRC_DESCRIPTOR_HPP_
 #define SFM_SRC_DESCRIPTOR_HPP_
-#include "opencv4/opencv2/core.hpp"
+#include "opencv2/core.hpp"
 
 
 class descriptor

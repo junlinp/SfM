@@ -6,7 +6,6 @@
 #include "ceres/rotation.h"
 #include "ceres/Problem.h"
 #include "ceres/ceres.h"
-#include "unittest.hpp"
 
 struct Cost {
 
@@ -107,7 +106,10 @@ int main(int argc, char** argv) {
 
   //auto g = feature_match(img1->get_descriptors(), img2->get_descriptors());
   //std::cout << g.size() << std::endl;
-
+  /*
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
+   */
+  std::cout << "hello world" << std::endl;
+  return 0;
 }
