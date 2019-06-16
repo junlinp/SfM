@@ -2,9 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 project(SfM)
 
 set(CMAKE_CXX_STANDARD 14)
-include_directories(/usr/local/Cellar/opencv/4.1.0_2/include/opencv4)
-include_directories(src)
-include_directories(/usr/local/include)
+include_directories(src /usr/local/include)
 link_directories(/usr/local/lib)
 
 find_package(OpenCV REQUIRED)
