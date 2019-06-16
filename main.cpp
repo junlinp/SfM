@@ -4,7 +4,7 @@
 #include "opencv2/core.hpp"
 #include "opencv2/highgui.hpp"
 #include "ceres/rotation.h"
-#include "ceres/Problem.h"
+#include "ceres/problem.h"
 #include "ceres/ceres.h"
 
 struct Cost {
