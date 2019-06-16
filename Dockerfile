@@ -10,6 +10,7 @@ RUN cmake . && make && make install
 
 WORKDIR /ceres-solver-1.14.0
 RUN cmake . && make && make install
+RUN ln -s /usr/include/eigen3/Eigen /usr/include/Eigen
 
 WORKDIR /SfM
 RUN mkdir -p /SfM/cmake-build-debug
