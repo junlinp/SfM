@@ -4,10 +4,11 @@
 
 #ifndef SFM_SRC_DESCRIPTOR_HPP_
 #define SFM_SRC_DESCRIPTOR_HPP_
-#include "opencv2/core.hpp"
 #include <memory>
+#include <cmath>
+#include <cstring>
 
-class descriptor
+class Descriptor
 {
 
 private:
@@ -15,22 +16,11 @@ private:
     size_t _size;
 
 public:
-    explicit descriptor(const float *input, int n)
+    explicit Descriptor(const float *input, int n)
     {
         vec = new float[n];
         memcpy(vec, input, n * sizeof(float));
         _size = n;
-    }
-
-    explicit descriptor(const cv::Mat &cvMat)
-    {
-        _size = cvMat.cols;
-        vec = new float[_size];
-
-        for (int i = 0; i < _size; i++)
-        {
-            vec[i] = cvMat.at<float>(0, i);
-        }
     }
 
     size_t size() {
@@ -40,7 +30,7 @@ public:
     float* data() {
       return vec;
     }
-    double distance(std::shared_ptr<descriptor> des) {
+    double distance(std::shared_ptr<Descriptor> des) {
       double res = 0.0;
       for (int i = 0; i < _size; i++) {
         double v = (this->vec[i] - des->vec[i]);
@@ -49,7 +39,7 @@ public:
       return res;
     }
 
-    double distance(const descriptor& des) {
+    double distance(const Descriptor& des) {
       double res = 0.0;
       for (int i = 0; i < _size; i++) {
         double v = (this->vec[i] - des.vec[i]);

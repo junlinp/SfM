@@ -4,6 +4,9 @@
 #include <string>
 #include <map>
 
+#include "descriptor.hpp"
+#include "keypoint.hpp"
+
 using IndexT = int64_t;
 
 struct View {
@@ -12,6 +15,8 @@ struct View {
 
 struct SfMData {
     std::map<IndexT, View> views;
+    std::map<IndexT, KeyPoint> key_points;
+    std::map<IndexT, Descriptor> descriptors;
 };
 
 #endif // SFM_DATA_H_

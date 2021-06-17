@@ -5,7 +5,7 @@
 #ifndef SFM_SRC_KEYPOINT_HPP_
 #define SFM_SRC_KEYPOINT_HPP_
 
-struct keypoint {
+struct KeyPoint {
   double x, y;
 };
 #endif //SFM_SRC_KEYPOINT_HPP_
