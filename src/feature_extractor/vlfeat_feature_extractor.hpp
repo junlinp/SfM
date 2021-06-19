@@ -5,7 +5,7 @@
 
 class VlfeatFeatureExtractor : public FeatureExtractorInterface {
 public:
-    virtual bool FeatureExtractor(SfMData& sfm_data) = 0;
+    virtual bool FeatureExtractor(SfMData& sfm_data) override;
 
     virtual ~VlfeatFeatureExtractor() = default;
 

@@ -15,8 +15,8 @@ struct View {
 
 struct SfMData {
     std::map<IndexT, View> views;
-    std::map<IndexT, KeyPoint> key_points;
-    std::map<IndexT, Descriptor> descriptors;
+    std::map<IndexT, std::vector<KeyPoint>> key_points;
+    std::map<IndexT, Descriptors> descriptors;
 };
 
 #endif // SFM_DATA_H_

@@ -21,7 +21,8 @@ target_link_libraries(SfMData PRIVATE cereal)
 add_library(FeatureExtractor src/feature_extractor/vlfeat_feature_extractor.cc)
 target_link_libraries(FeatureExtractor PUBLIC SfMData PRIVATE vlfeat ${OpenCV_LIBS})
 target_include_directories(FeatureExtractor PRIVATE ${OpenCV_INCLUDE_DIRS})
-
 add_executable(list_image src/list_image.cpp)
 target_link_libraries(list_image PRIVATE SfMData)
 
+add_executable(FeatureExtractor_main src/feature_extractor_main.cc)
+target_link_libraries(FeatureExtractor_main PRIVATE FeatureExtractor)
