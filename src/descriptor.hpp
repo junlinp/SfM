@@ -5,6 +5,7 @@
 #ifndef SFM_SRC_DESCRIPTOR_HPP_
 #define SFM_SRC_DESCRIPTOR_HPP_
 #include <vector>
+#include <array>
 
 class Descriptors
 {

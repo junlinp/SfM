@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <iostream>
 #include <filesystem>
+#include <algorithm>
 
 #include "sfm_data.hpp"
 #include "sfm_data_io.hpp"
@@ -21,16 +22,20 @@ int main(int argc, char** argv) {
             vec_path.push_back(p.path());
         }
         auto filter = [](const std::string& s) {
-            if(s.rfind(".jpg") != std::string::npos) {
+            std::string temp;
+            for(const auto& c : s) {
+                temp += std::tolower(c);
+            }
+            if(temp.rfind(".jpg") != std::string::npos) {
                 return true;
             }
-            if(s.rfind(".png") != std::string::npos) {
+            if(temp.rfind(".png") != std::string::npos) {
                 return true;
             }
-            if(s.rfind(".jpeg") != std::string::npos) {
+            if(temp.rfind(".jpeg") != std::string::npos) {
                 return true;
             }
-            if(s.rfind(".tif") != std::string::npos) {
+            if(temp.rfind(".tif") != std::string::npos) {
                 return true;
             }
             return false;

@@ -18,7 +18,7 @@ void Gray(cv::Mat image, std::vector<float>& gray_image) {
     }
 }
 bool VlfeatFeatureExtractor::FeatureExtractor(SfMData& sfm_data) {
-
+    size_t count = 0;
     for(auto view_iter : sfm_data.views) {
         std::string image_path = view_iter.second.image_path;
         cv::Mat image = cv::imread(image_path);
@@ -48,6 +48,8 @@ bool VlfeatFeatureExtractor::FeatureExtractor(SfMData& sfm_data) {
         } while(vl_sift_process_next_octave(sift_handle) == 0);
 
         vl_sift_delete(sift_handle);
+
+        std::printf("Feature Extractor %f %%\n", 100.0 * ++count / sfm_data.views.size());
     }
 
     return true;
