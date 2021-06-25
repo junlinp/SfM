@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "internal/thread_pool.hpp"
+#include "ransac.hpp"
 
 TEST(ThreadPool, Enqueue) {
     auto functor = [](int a) {
@@ -17,6 +18,10 @@ TEST(ThreadPool, Enqueue) {
         std::future<int> res = threadpool.Enqueue(functor, i);
         EXPECT_EQ(2 * i, res.get());
     }
+}
+
+TEST(Ransac, Fit_Line) {
+
 }
 
 #endif //SFM_SRC_UNITTEST_HPP_

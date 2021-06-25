@@ -14,15 +14,78 @@
 // (1 - w^s)^N = 1 - p
 // N = log(1 - p) / log(1 - w^s)
 // 
+#include <random>
+#include <vector>
+#include <numeric>
+
+class NormalSampler {
+
+    template<int MINIMUM_SAMPLE, class T>
+    static inline bool Sample(const std::vector<T>& samples, std::vector<int>& sample_index) {
+        if (samples.size() < MINIMUM_SAMPLE) {
+          std::cerr << "samples with " << samples.size() << " can't select "
+                    << MINIMUM_SAMPLE << " items." << std::endl;
+          return false;
+        }
+
+        sample_index.resize(samples.size());
+        std::default_random_engine engine;
+        std::iota(sample_index.begin(), sample_index.end(), 0);
+        std::shuffle(sample_index.begin(), sample_index.end(), engine);
+        sample_index.resize(MINIMUM_SAMPLE);
+    }
+};
 template<class Kernel>
 class Ransac {
-    using sample_type = Kernel::sample_type;
-    using model_type = Kernel::model_type;
-    using model_number = Kernel::model_number;
+    using sample_type = typename Kernel::sample_type;
+    static constexpr decltype(Kernel::minimum_data_point) MINIMUM_DATA_POINT = Kernel::minimum_data_point;
+    static constexpr decltype(Kernel::model_number) MODEL_NUMBER = Kernel::model_number;
+    static constexpr decltype(Kernel::model_freedom) MODEL_FREEDOM = Kernel::model_freedom;
+    using model_freedom = typename Kernel::model_freedom;
+    using MODEL_TYPE = typename Kernel::model_type;
+
     public:
-        Inference(const std::vector<sample_type>& samples,
+        bool Inference(const std::vector<sample_type>& samples,
         std::vector<size_t> inlier_indexs,
-        model_type* models
-        );
+        MODEL_TYPE* models
+        ) {
+            std::size_t N = std::numeric_limits<std::size_t>::max();
+            std::size_t sample_count = 0;
+            while(N > sample_count) {
+                std::vector<int> sample_index;
+                // Sample
+                NormalSampler::Sample<MINIMUM_DATA_POINT>(samples, sample_index);
+
+                MODEL_TYPE models[MODEL_NUMBER];
+                // Compute model
+                Kernel::Fit(sample_index, models);
+
+                double threshold = std::sqrt(3.84) * sigma; 
+                // Compute inliers
+                for(MODEL_TYPE model_candicate : models) {
+                    std::vector<int> inliner_index;
+                    inliner_index.reserve(samples.size());
+                    for(int i = 0; i < samples.size(); i++) {
+                        double error = Kernel::Error(model_candicate, samples[i]);
+                        if (error < threshold) {
+                            inliner_index.push_back(i);
+                        }
+                    }
+                    // epsilon = 1 - (inliners) / total_size
+                    // p = 0.99 N = log(1 - p) / log(1 - (1 - epsilon)^s))
+                    double epsilon = (samples.size() - inliner_index.size()) * 1.0 / (samples.size());
+
+                    int temp_N = std::ceil(
+                        std::log(1 - 0.99) /
+                        std::log(1 - std::pow(1 - epsilon, model_freedom)));
+                    N = std::min(N, temp_N);
+                    if (inliner_index.size() > inliner_indexs.size()) {
+                        std::swap(inliner_indexs, inliner_index);
+                        std::swap(*models, model_candicate);
+                    }
+                }
+                sample_count++;
+            }
+        }
 };
 #endif  // RANSAC_H_
