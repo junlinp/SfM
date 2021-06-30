@@ -5,15 +5,29 @@
 #include "cereal/archives/binary.hpp"
 #include "cereal/types/map.hpp"
 #include "cereal/types/string.hpp"
+#include "cereal/types/utility.hpp"
+#include "cereal/types/vector.hpp"
 
 template<class Archive>
 void serialize(Archive& ar, View& view) {
     ar(view.image_path);
 }
+template<class Archive>
+void serialize(Archive& ar, KeyPoint& key_point) {
+    ar(cereal::make_nvp("x", key_point.x));
+    ar(cereal::make_nvp("y", key_point.y));
+}
 
+template<class Archive>
+void serialize(Archive& ar, Descriptors& descriptors){
+    ar(descriptors.getRaw_Data());
+}
 template<class Archive>
 void serialize(Archive& ar, SfMData& sfm_data) {
     ar(sfm_data.views);
+    ar(sfm_data.key_points);
+    ar(sfm_data.descriptors);
+    ar(sfm_data.matches);
 }
 
 bool Save(const SfMData& sfm_data, const std::string path) {

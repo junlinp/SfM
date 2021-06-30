@@ -3,6 +3,8 @@
 #include "sfm_data.hpp"
 #include "sfm_data_io.hpp"
 #include "feature_extractor/vlfeat_feature_extractor.hpp"
+#include "feature_extractor/opencv_orb_extractor.hpp"
+
 int main(int argc, char** argv) {
     if (argc != 2) {
       std::printf("Usage: %s /path/to/sfm_data\n", argv[0]);
@@ -17,8 +19,10 @@ int main(int argc, char** argv) {
       std::printf("Load %s Finish.\n", argv[1]);
     }
 
-    auto extractor = VlfeatFeatureExtractor();
-
+    //auto extractor = VlfeatFeatureExtractor();
+    auto extractor = OpenCVORBFeatureExtractor();
+    sfm_data.key_points.clear();
+    sfm_data.descriptors.clear();
     extractor.FeatureExtractor(sfm_data);
 
     bool save_data = Save(sfm_data, argv[1]);

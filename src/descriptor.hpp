@@ -24,6 +24,10 @@ public:
       return raw_data.data();
     }
 
+    std::vector<float>& getRaw_Data() {
+      return raw_data;
+    }
+
     void push_back(std::array<float, 128>& data) {
       std::copy(data.begin(), data.end(), std::back_inserter(raw_data));
     }

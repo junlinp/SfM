@@ -17,7 +17,7 @@
 #include <random>
 #include <vector>
 #include <numeric>
-
+#include <algorithm>
 class NormalSampler {
 
     template<int MINIMUM_SAMPLE, class T>
@@ -41,7 +41,6 @@ class Ransac {
     static constexpr decltype(Kernel::minimum_data_point) MINIMUM_DATA_POINT = Kernel::minimum_data_point;
     static constexpr decltype(Kernel::model_number) MODEL_NUMBER = Kernel::model_number;
     static constexpr decltype(Kernel::model_freedom) MODEL_FREEDOM = Kernel::model_freedom;
-    using model_freedom = typename Kernel::model_freedom;
     using MODEL_TYPE = typename Kernel::model_type;
 
     public:
@@ -59,11 +58,11 @@ class Ransac {
                 MODEL_TYPE models[MODEL_NUMBER];
                 // Compute model
                 Kernel::Fit(sample_index, models);
-
+                double sigma = 0.1;
                 double threshold = std::sqrt(3.84) * sigma; 
                 // Compute inliers
                 for(MODEL_TYPE model_candicate : models) {
-                    std::vector<int> inliner_index;
+                    std::vector<size_t> inliner_index;
                     inliner_index.reserve(samples.size());
                     for(int i = 0; i < samples.size(); i++) {
                         double error = Kernel::Error(model_candicate, samples[i]);
@@ -75,12 +74,12 @@ class Ransac {
                     // p = 0.99 N = log(1 - p) / log(1 - (1 - epsilon)^s))
                     double epsilon = (samples.size() - inliner_index.size()) * 1.0 / (samples.size());
 
-                    int temp_N = std::ceil(
+                    size_t temp_N = std::ceil(
                         std::log(1 - 0.99) /
-                        std::log(1 - std::pow(1 - epsilon, model_freedom)));
+                        std::log(1 - std::pow(1 - epsilon, MODEL_FREEDOM)));
                     N = std::min(N, temp_N);
-                    if (inliner_index.size() > inliner_indexs.size()) {
-                        std::swap(inliner_indexs, inliner_index);
+                    if (inliner_index.size() > inlier_indexs.size()) {
+                        std::swap(inlier_indexs, inliner_index);
                         std::swap(*models, model_candicate);
                     }
                 }
