@@ -5,6 +5,6 @@
 #include "gtest/gtest.h"
 #include "unittest.hpp"
 int main(int argc, char**argv) {
-  testing::InitGoogleTest(&argc, argv);
+  testing::InitGoogleTest();
   return RUN_ALL_TESTS();
 }
