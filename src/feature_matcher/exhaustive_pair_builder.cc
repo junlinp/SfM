@@ -6,7 +6,7 @@ void ExhaustivePairBuilder::BuildPair(SfMData& sfm_data, std::set<Pair>& pair_re
         return pair_item.first;
     };
 
-    std::vector<IndexT> index_vec = sfm_data.views | functor;
+    std::vector<IndexT> index_vec = sfm_data.views | Transform(functor) | ToVector();
 
     for (int i = 0;i < index_vec.size(); i++) {
         for (int j = i + 1; j < index_vec.size(); j++) {
