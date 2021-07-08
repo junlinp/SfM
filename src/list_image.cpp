@@ -44,6 +44,7 @@ int main(int argc, char** argv) {
         // should use function programming 
         std::vector<std::string> result;
         std::copy_if(vec_path.begin(), vec_path.end(), std::back_inserter(result), filter);
+        auto t = vec_path | Filter(filter);
 
         for(std::string s : result) {
             View view;

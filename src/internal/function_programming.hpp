@@ -98,4 +98,77 @@ auto operator|(Container&& container, ToVectorBuilder&& /**/) {
     return res;
 }
 
+template<class InputIterator, class Predicate, class OutputType>
+struct FilterIterator : std::iterator<std::forward_iterator_tag, OutputType> {
+    FilterIterator(InputIterator iterator, Predicate predicate, const InputIterator& begin, const InputIterator& end) : iterator_(iterator), predicate_(predicate), begin_(begin), end_(end) {
+        iterator_ = std::find_if(iterator_, end_, predicate_);
+    }
+
+    FilterIterator operator++() {
+        FilterIterator temp(iterator_, predicate_, begin_, end_);
+        ++iterator_;
+        iterator_ = std::find_if(iterator_, end_, predicate_);
+        return temp;
+    }
+
+    bool operator!=(const FilterIterator& rhs) const {
+        return iterator_ != rhs.iterator;
+    }
+
+    OutputType operator*() const {
+        return *iterator_;
+    }
+
+    InputIterator iterator_, begin_, end_;
+    Predicate predicate_;
+};
+
+template<class Container, class Predicate>
+class FilterContainer {
+ public:
+  FilterContainer(Container container, Predicate predicate)
+      : container_(std::forward<Container>(container)),
+        predicate_(std::forward<Predicate>(predicate)) {}
+
+        using value_type = typename std::decay_t<Container>::value_type;
+        using origin_iterator = typename std::decay_t<Container>::iterator;
+        using iterator = FilterIterator<origin_iterator, Predicate, value_type>;
+
+    auto begin() {
+        return iterator(container_.begin(), predicate_, container_.begin(), container_.end());
+    }
+
+    auto end() {
+        return iterator(container_.end(), predicate_, container_.begin(), container_.end());
+    }
+
+ private:
+  Container container_;
+  Predicate predicate_;
+};
+template<class Predicate>
+class FilterBuilder {
+public:
+    FilterBuilder(Predicate predicate) : predicate_(std::forward<Predicate>(predicate)) {}
+
+    template<class Container>
+    auto Build(Container container) {
+      return FilterContainer<Container, Predicate>(
+          std::forward<Container>(container),
+          std::forward<Predicate>(predicate_));
+    }
+private:
+ Predicate predicate_;
+};
+
+template<class Predicate>
+auto Filter(Predicate&& predicate) {
+    return FilterBuilder<Predicate>(std::forward<Predicate>(predicate));
+}
+
+template<class Container, class Predicate>
+auto operator|(Container&& container, FilterBuilder<Predicate>&& builder) {
+    return builder.template Build<Container>(std::forward<Container>(container));
+}
+
 #endif  // INTERNAL_FUNCTION_PROGRAMMING_H_
