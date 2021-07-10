@@ -37,22 +37,33 @@ class NormalSampler {
     return true;
   }
 };
+
+/**
+ * @brief Ransac Model
+ *
+ * Concept requiredment:
+ *  - function signature: void Fit<std::vector<DataPointType>&, MODEL_TYPE* models)
+ *  - function signature: double Error(const DataPointType&, const MODEL_TYPE& model);
+ * @tparam Kernel
+ */
 template <class Kernel>
 class Ransac {
   static constexpr double chi_square_distribute[] = {
       0.0, 3.84, 5.99, 7.82, 9.49, 11.07, 12.59, 14.07, 15.51, 16.92, 18.31};
-  using sample_type = typename Kernel::sample_type;
+  using DataPointType = typename Kernel::DataPointType;
+
   static constexpr decltype(Kernel::minimum_data_point) MINIMUM_DATA_POINT =
       Kernel::minimum_data_point;
-  static constexpr decltype(Kernel::model_number) MODEL_NUMBER =
+  static constexpr decltype(Kernel::model_number) MODEL_FIT_NUMBER =
       Kernel::model_number;
   static constexpr decltype(Kernel::model_freedom) MODEL_FREEDOM =
       Kernel::model_freedom;
+
   using MODEL_TYPE = typename Kernel::model_type;
 
  public:
-  bool Inference(const std::vector<sample_type>& samples,
-                 std::vector<size_t> inlier_indexs, MODEL_TYPE* models) {
+  bool Inference(const std::vector<DataPointType>& samples,
+                 std::vector<size_t> inlier_indexs, MODEL_TYPE* result_models) {
     std::size_t N = std::numeric_limits<std::size_t>::max();
     std::size_t sample_count = 0;
     while (N > sample_count) {
@@ -61,8 +72,8 @@ class Ransac {
       // Sample
       NormalSampler::Sample<MINIMUM_DATA_POINT>(samples, sample_index);
 
-      MODEL_TYPE models[MODEL_NUMBER];
-      std::vector<sample_type> temp_sample;
+      MODEL_TYPE models[MODEL_FIT_NUMBER];
+      std::vector<DataPointType> temp_sample;
       for (int index : sample_index) {
         temp_sample.push_back(samples[index]);
       }
@@ -84,7 +95,7 @@ class Ransac {
         // p = 0.99 N = log(1 - p) / log(1 - (1 - epsilon)^s))
         if (inliner_index.size() == samples.size()) {
           std::swap(inlier_indexs, inliner_index);
-          std::swap(*models, model_candicate);
+          std::swap(*result_models, model_candicate);
           return true;
         }
         double epsilon =
@@ -97,7 +108,7 @@ class Ransac {
         N = std::min(N, temp_N);
         if (inliner_index.size() > inlier_indexs.size()) {
           std::swap(inlier_indexs, inliner_index);
-          std::swap(*models, model_candicate);
+          std::swap(*result_models, model_candicate);
         }
       }
       sample_count++;

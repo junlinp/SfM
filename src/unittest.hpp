@@ -4,7 +4,7 @@
 
 #ifndef SFM_SRC_UNITTEST_HPP_
 #define SFM_SRC_UNITTEST_HPP_
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 #include <random>
 
@@ -21,13 +21,17 @@ TEST(ThreadPool, Enqueue) {
     EXPECT_EQ(2 * i, res.get());
   }
 }
+
+struct model {
+  double a, b;
+};
 class LineFit {
  private:
   double a_, b_;
 
  public:
   using DataPointType = std::pair<double, double>;
-  using model_type = double*;
+  using model_type = model;
   static const size_t minimum_data_point = 2;
   static const size_t model_number = 1;
   static const size_t model_freedom = 1;
@@ -36,7 +40,7 @@ class LineFit {
   LineFit(double a, double b) : a_(a), b_(b) {}
 
   static double Error(std::pair<double, double> data_point,const model_type& model) {
-      double e = data_point.second - (model[0] * data_point.first + model[1]);
+      double e = data_point.second - (model.a * data_point.first + model.b);
       return e * e;
   }
 
@@ -62,9 +66,9 @@ class LineFit {
 
     Eigen::VectorXd x = (A.transpose() * A).inverse() * A.transpose() * b;
 
-    model[0][0] = x(0);
-    model[0][1] = x(1);
-    std::printf("Model[0]  = %lf, Model[1] = %lf\n", model[0][0], model[0][1]);
+    model[0].a = x(0);
+    model[0].b = x(1);
+    std::printf("Model[0]  = %lf, Model[1] = %lf\n", model[0].a, model[0].b);
     return 0.0;
   }
 };
@@ -86,11 +90,12 @@ TEST(Ransac, Fit_Line) {
 
   Ransac<LineFit> ransac;
   std::vector<size_t> inlier_indexs;
-  LineFit::model_type models = new double[2];
+  LineFit::model_type models;
   ransac.Inference(data_points, inlier_indexs, &models);
-  std::printf("a = %lf, b = %lf\n", models[0], models[1]);
+  std::printf("a = %lf, b = %lf\n", models.a, models.b);
   std::printf("Done\n");
-  delete[] models;
+  EXPECT_NEAR(models.a, a, 1e-2);
+  EXPECT_NEAR(models.b, b, 1e-2);
 }
 
 #endif  // SFM_SRC_UNITTEST_HPP_

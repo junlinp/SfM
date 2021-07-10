@@ -14,7 +14,7 @@ add_subdirectory(src/third_party)
 #target_link_libraries(SfM ${OpenCV_LIBS} ${CERES_LIBRARIES})
 
 
-add_library(SfMData src/sfm_data_io.cc)
+add_library(SfMData src/sfm_data_io.cc src/sfm_data_io.hpp src/sfm_data.hpp)
 target_link_libraries(SfMData PRIVATE cereal::cereal)
 
 add_library(FeatureExtractor 
