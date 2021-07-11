@@ -7,11 +7,13 @@
 #include "gtest/gtest.h"
 
 #include <random>
+#include <vector>
 
 #include "internal/thread_pool.hpp"
 #include "ransac.hpp"
 
 #include "Eigen/Dense"
+#include "solver/fundamental_solver.hpp"
 
 TEST(ThreadPool, Enqueue) {
   auto functor = [](int a) { return 2 * a; };
@@ -96,6 +98,42 @@ TEST(Ransac, Fit_Line) {
   std::printf("Done\n");
   EXPECT_NEAR(models.a, a, 1e-2);
   EXPECT_NEAR(models.b, b, 1e-2);
+}
+
+
+//     | 1  1  0 |
+// F = | 0  1  0 |
+//     | 0  0  0 |
+
+TEST(Solver, Fundamental_Solver) {
+  EightPointFundamentalSolver solver;
+  std::vector<KeyPoint> lhs_key_points = {
+      {0, 0}, {1, 0}, {2, 0},
+      {0, 1}, {1, 1}, {2, 1},
+      {1, 2}, {2, 2}
+  };
+
+  std::vector<KeyPoint> rhs_key_points = {
+      {1, 1}, {1, -1}, {-1, 1},
+      {1, 0}, {-2, 1}, {-3, 2},
+      {3, -1}, {-4, 2}
+  };
+
+  std::vector<typename EightPointFundamentalSolver::DataPointType>  datas;
+  for(int i = 0; i < lhs_key_points.size(); i++) {
+    datas.push_back({lhs_key_points[i], rhs_key_points[i]});
+  }
+
+  Eigen::Matrix3d F;
+  solver.Fit(datas, &F);
+  //F << 1.0, 1.0, 0.0,
+  //     0.0, 1.0, 0.0,
+  //     0.0, 0.0, 0.0;
+  std::cout << "F : " << F << std::endl;
+  F = F * 1000;
+  for (auto data_point : datas) {
+    std::cout << " Error : " << solver.Error(data_point, F) << std::endl;
+  }
 }
 
 #endif  // SFM_SRC_UNITTEST_HPP_

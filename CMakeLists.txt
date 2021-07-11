@@ -8,8 +8,10 @@ find_package(OpenCV REQUIRED)
 find_package(cereal REQUIRED)
 #find_package(glog REQUIRED)
 find_package(GTest REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 add_subdirectory(src/third_party)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 #add_executable(SfM main.cpp src/feature_extractor.cc src/feature_extractor.hpp  src/descriptor.cc   src/camera_model.hpp src/image.cc src/image.hpp)
 #target_link_libraries(SfM ${OpenCV_LIBS} ${CERES_LIBRARIES})
 
@@ -21,6 +23,10 @@ add_library(FeatureExtractor
 src/feature_extractor/vlfeat_feature_extractor.cc 
 src/feature_extractor/opencv_orb_extractor.cc)
 target_link_libraries(FeatureExtractor PUBLIC SfMData PRIVATE vlfeat ${OpenCV_LIBS})
+
+add_library(Solver src/solver/fundamental_solver.cc src/solver/fundamental_solver.hpp)
+target_include_directories(Solver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(Solver PUBLIC Eigen3::Eigen)
 
 target_include_directories(FeatureExtractor PRIVATE ${OpenCV_INCLUDE_DIRS})
 add_executable(list_image src/list_image.cpp)
@@ -41,4 +47,4 @@ target_link_libraries(FeatureMatch_main PRIVATE FeatureMatch)
 
 
 add_executable(Unittest src/unittest.cc)
-target_link_libraries(Unittest PUBLIC GTest::gtest)
+target_link_libraries(Unittest PUBLIC GTest::gtest Solver)
