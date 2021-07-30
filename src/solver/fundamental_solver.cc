@@ -7,29 +7,33 @@
 #include <cassert>
 #include <iostream>
 
-void EightPointFundamentalSolver::Fit(const std::vector<EightPointFundamentalSolver::DataPointType >& data_points, MODEL_TYPE* models) {
-  assert(data_points.size() == EightPointFundamentalSolver::MINIMUM_DATA_NUMBER);
-  Eigen::Matrix<double, 8, 9> A;
-  for(int i = 0; i < 8; i++) {
-    double lhs_x = data_points[i].first.x;
-    double lhs_y = data_points[i].first.y;
-    double rhs_x = data_points[i].second.x;
-    double rhs_y = data_points[i].second.y;
-    A(i, 0) = lhs_x * rhs_x;
-    A(i, 1) = lhs_x * rhs_y;
-    A(i, 2) = lhs_x * 1.0;
 
+Eigen::Matrix3d Normal(const Eigen::Matrix<double, 2, 8>& data) {
 
-    A(i, 3) = lhs_y * rhs_x;
-    A(i, 4) = lhs_y * rhs_y;
-    A(i, 5) = lhs_y * 1.0;
-
-
-    A(i, 6) = 1.0 * rhs_x;
-    A(i, 7) = 1.0 * rhs_y;
-    A(i, 8) = 1.0 * 1.0;
+  Eigen::Matrix<double, 2, 1> center = data.rowwise().mean();
+  size_t n = data.cols();
+  double normal = 0.0;
+  for (int i = 0; i < n; i++) {
+    normal += (data.col(i) - center).norm();
   }
+  std::cout << "Normal Sum : " << (data.colwise() - center).colwise().norm().sum() << std::endl;
 
+  double alpha = n * std::sqrt(2) / normal;
+  Eigen::Matrix2d Identity = Eigen::Matrix2d::Identity();
+  Eigen::Matrix3d res;
+  res << alpha * Identity, alpha * center,
+         0, 0, 1;
+  return res;
+}
+
+void FitImpl(const Eigen::Matrix<double, 3, 8>& lhs,const Eigen::Matrix<double, 3, 8>& rhs, Eigen::Matrix3d* models) {
+  Eigen::Matrix<double, 8, 9> A;
+
+  for(int i = 0; i < 8; i++) {
+    Eigen::Matrix<double, 9, 1> row;
+    row << lhs(0, i) * rhs.col(i), lhs(1, i) * rhs.col(i), lhs(2, i) * rhs.col(i);
+    A.row(i) = row.transpose();
+  }
   Eigen::Matrix<double, 9, 9> ATA = A.transpose() * A;
 
   Eigen::JacobiSVD<decltype(ATA)> svd_solver(ATA, Eigen::ComputeFullV);
@@ -52,6 +56,34 @@ void EightPointFundamentalSolver::Fit(const std::vector<EightPointFundamentalSol
   // UDV^t
   singular(2) = 0.0;
   *models = U * singular.asDiagonal() * V.transpose();
+
+}
+
+void FitImpl(const Eigen::Matrix<double, 2, 8>& lhs,const Eigen::Matrix<double, 2, 8>& rhs, Eigen::Matrix3d* models) {
+  Eigen::Matrix<double, 3, 8> lhs_homogous = lhs.colwise().homogeneous();
+  Eigen::Matrix<double, 3, 8> rhs_homogous = rhs.colwise().homogeneous();
+
+  Eigen::Matrix3d T = Normal(lhs);
+  Eigen::Matrix3d T_dot = Normal(rhs);
+
+  lhs_homogous = T * lhs_homogous;
+  rhs_homogous = T_dot * rhs_homogous;
+
+  FitImpl(lhs_homogous, rhs_homogous, models);
+
+  *models = T.transpose() * (*models) * T_dot;
+}
+
+void EightPointFundamentalSolver::Fit(const std::vector<EightPointFundamentalSolver::DataPointType >& data_points, MODEL_TYPE* models) {
+  assert(data_points.size() == EightPointFundamentalSolver::MINIMUM_DATA_NUMBER);
+  Eigen::Matrix<double, 2, 8> lhs, rhs;
+  for(int i = 0; i < 8; i++) {
+    lhs(0, i) = data_points[i].first.x;
+    lhs(1, i) = data_points[i].first.y;
+    rhs(0, i) = data_points[i].second.x;
+    rhs(1, i) = data_points[i].second.y;
+  }
+  FitImpl(lhs, rhs, models);
 }
 
 double EightPointFundamentalSolver::Error(const DataPointType& data_point, const MODEL_TYPE& model) {

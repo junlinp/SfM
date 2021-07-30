@@ -51,7 +51,7 @@ class TransformContainer {
                                       Functor, OutputType>;
 
   iterator begin() { return iterator(container_.begin(), functor_); };
-  iterator end() { return iterator(container_.begin(), functor_); }
+  iterator end() { return iterator(container_.end(), functor_); }
 
  private:
   InputContainer container_;

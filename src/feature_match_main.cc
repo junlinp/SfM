@@ -9,7 +9,12 @@ int main(int argc, char** argv) {
     }
 
     SfMData sfm_data;
-    Load(sfm_data, argv[1]);
+    bool b_load = Load(sfm_data, argv[1]);
+    if (b_load) {
+        std::printf("Load Sfm Data Finish\n");
+    } else {
+        std::printf("Load Sfm Data From %s Fails\n", argv[1]);
+    }
 
     auto pair_selector = std::make_shared<ExhaustivePairBuilder>();
     std::set<Pair> pairs;
