@@ -52,14 +52,14 @@ class Ransac {
       0.0, 3.84, 5.99, 7.82, 9.49, 11.07, 12.59, 14.07, 15.51, 16.92, 18.31};
   using DataPointType = typename Kernel::DataPointType;
 
-  static constexpr decltype(Kernel::minimum_data_point) MINIMUM_DATA_POINT =
-      Kernel::minimum_data_point;
-  static constexpr decltype(Kernel::model_number) MODEL_FIT_NUMBER =
-      Kernel::model_number;
-  static constexpr decltype(Kernel::model_freedom) MODEL_FREEDOM =
-      Kernel::model_freedom;
+  static constexpr decltype(Kernel::MINIMUM_DATA_POINT) MINIMUM_DATA_POINT =
+      Kernel::MINIMUM_DATA_POINT;
+  static constexpr decltype(Kernel::MODEL_NUMBER) MODEL_FIT_NUMBER =
+      Kernel::MODEL_NUMBER;
+  static constexpr decltype(Kernel::MODEL_FREEDOM) MODEL_FREEDOM =
+      Kernel::MODEL_FREEDOM;
 
-  using MODEL_TYPE = typename Kernel::model_type;
+  using MODEL_TYPE = typename Kernel::MODEL_TYPE;
 
  public:
   bool Inference(const std::vector<DataPointType>& samples,

@@ -33,20 +33,20 @@ class LineFit {
 
  public:
   using DataPointType = std::pair<double, double>;
-  using model_type = model;
-  static const size_t minimum_data_point = 2;
-  static const size_t model_number = 1;
-  static const size_t model_freedom = 1;
+  using MODEL_TYPE = model;
+  static const size_t MINIMUM_DATA_POINT = 2;
+  static const size_t MODEL_NUMBER = 1;
+  static const size_t MODEL_FREEDOM = 1;
   using sample_type = DataPointType;
 
   LineFit(double a, double b) : a_(a), b_(b) {}
 
-  static double Error(std::pair<double, double> data_point,const model_type& model) {
+  static double Error(std::pair<double, double> data_point,const MODEL_TYPE& model) {
       double e = data_point.second - (model.a * data_point.first + model.b);
       return e * e;
   }
 
-  static double Fit(const std::vector<DataPointType>& samples, model_type* model) {
+  static double Fit(const std::vector<DataPointType>& samples, MODEL_TYPE* model) {
     // y = a * x + b => x1 * a + b = y1
     //  x2 * a + b = y2
     // (x1 - x2) * a = (y1 - y2)
@@ -92,7 +92,7 @@ TEST(Ransac, Fit_Line) {
 
   Ransac<LineFit> ransac;
   std::vector<size_t> inlier_indexs;
-  LineFit::model_type models;
+  LineFit::MODEL_TYPE models;
   ransac.Inference(data_points, inlier_indexs, &models);
   std::printf("a = %lf, b = %lf\n", models.a, models.b);
   std::printf("Done\n");
@@ -136,4 +136,28 @@ TEST(Solver, Fundamental_Solver) {
   }
 }
 
+TEST(Solver, Fundamental_Solver_With_Ransac) {
+std::vector<KeyPoint> lhs_key_points = {
+      {0, 0}, {1, 0}, {2, 0},
+      {0, 1}, {1, 1}, {2, 1},
+      {1, 2}, {2, 2}, {5, 10}
+  };
+
+  std::vector<KeyPoint> rhs_key_points = {
+      {1, 1}, {1, -1}, {-1, 1},
+      {1, 0}, {-2, 1}, {-3, 2},
+      {3, -1}, {-4, 2}, {10, 5}
+  };
+
+  std::vector<typename EightPointFundamentalSolver::DataPointType> datas;
+  for(int i = 0; i < lhs_key_points.size(); i++) {
+    datas.push_back({lhs_key_points[i], rhs_key_points[i]});
+  }
+  Ransac<EightPointFundamentalSolver> ransac_solver;
+  std::vector<size_t> inlier_index;
+  Eigen::Matrix3d F;
+  ransac_solver.Inference(datas, inlier_index, &F);
+
+  std::cout << "F : " << F << std::endl;
+}
 #endif  // SFM_SRC_UNITTEST_HPP_
