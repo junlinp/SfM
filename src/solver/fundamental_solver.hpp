@@ -13,7 +13,7 @@
 class EightPointFundamentalSolver {
  public:
   using DataPointType = std::pair<KeyPoint, KeyPoint>;
-  static constexpr size_t MINIMUM_DATA_NUMBER = 8;
+  static constexpr size_t MINIMUM_DATA_POINT = 8;
   static constexpr size_t MODEL_FREEDOM = 1;
   static constexpr size_t MODEL_NUMBER = 1;
   using MODEL_TYPE = Eigen::Matrix3d;

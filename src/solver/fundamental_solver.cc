@@ -16,7 +16,7 @@ Eigen::Matrix3d Normal(const Eigen::Matrix<double, 2, 8>& data) {
   for (int i = 0; i < n; i++) {
     normal += (data.col(i) - center).norm();
   }
-  std::cout << "Normal Sum : " << (data.colwise() - center).colwise().norm().sum() << std::endl;
+  //std::cout << "Normal Sum : " << (data.colwise() - center).colwise().norm().sum() << std::endl;
 
   double alpha = n * std::sqrt(2) / normal;
   Eigen::Matrix2d Identity = Eigen::Matrix2d::Identity();
@@ -38,14 +38,14 @@ void FitImpl(const Eigen::Matrix<double, 3, 8>& lhs,const Eigen::Matrix<double, 
 
   Eigen::JacobiSVD<decltype(ATA)> svd_solver(ATA, Eigen::ComputeFullV);
 
-  std::cout << svd_solver.singularValues()(8) << std::endl;
+  //std::cout << svd_solver.singularValues()(8) << std::endl;
   
   //
   // Solve the equality : A*x = 0
   // Using SVD methods to compute Null Space
   //
   Eigen::Matrix<double, 9, 1> f_coeff = svd_solver.matrixV().col(8); 
-  std::cout << "f_coeff : " << f_coeff << std::endl;
+  //std::cout << "f_coeff : " << f_coeff << std::endl;
 
   Eigen::Matrix3d F = Eigen::Map<Eigen::Matrix<double, 3, 3, Eigen::RowMajor>>(f_coeff.data());
 
@@ -75,7 +75,7 @@ void FitImpl(const Eigen::Matrix<double, 2, 8>& lhs,const Eigen::Matrix<double, 
 }
 
 void EightPointFundamentalSolver::Fit(const std::vector<EightPointFundamentalSolver::DataPointType >& data_points, MODEL_TYPE* models) {
-  assert(data_points.size() == EightPointFundamentalSolver::MINIMUM_DATA_NUMBER);
+  assert(data_points.size() == EightPointFundamentalSolver::MINIMUM_DATA_POINT);
   Eigen::Matrix<double, 2, 8> lhs, rhs;
   for(int i = 0; i < 8; i++) {
     lhs(0, i) = data_points[i].first.x;
