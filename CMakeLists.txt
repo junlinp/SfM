@@ -43,8 +43,11 @@ target_link_libraries(FeatureMatch PRIVATE SfMData)
 add_executable(FeatureMatch_main src/feature_match_main.cc)
 target_link_libraries(FeatureMatch_main PRIVATE FeatureMatch)
 
+add_executable(SFM_main src/sfm_main.cc)
+target_link_libraries(SFM_main PRIVATE SfMData Eigen3::Eigen Solver)
 
-
+add_executable(DrawMatch_main src/draw_match_main.cc)
+target_link_libraries(DrawMatch_main PUBLIC SfMData ${OpenCV_LIBS})
 
 add_executable(Unittest src/unittest.cc)
 target_link_libraries(Unittest PUBLIC GTest::gtest Solver)
