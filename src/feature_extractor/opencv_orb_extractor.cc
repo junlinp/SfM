@@ -3,7 +3,7 @@
 #include "opencv2/imgcodecs.hpp"
 #include "iostream"
 bool OpenCVORBFeatureExtractor::FeatureExtractor(SfMData& sfm_data) {
-    auto orb_ptr = cv::ORB::create(1024);
+    auto orb_ptr = cv::ORB::create(1024 * 8);
     for(auto view_iter : sfm_data.views) {
         std::string image_path = view_iter.second.image_path;
 

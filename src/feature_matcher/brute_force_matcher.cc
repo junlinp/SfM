@@ -29,8 +29,10 @@ void BruteForceMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs) {
       float min_distance = std::numeric_limits<float>::max();
       size_t second_min_index = -1;
       float second_min_distance = std::numeric_limits<float>::max();
+      float* lhs_ptr = lhs.data();
+      float* rhs_ptr = rhs.data();
       for (int j = 0; j < rhs_size; j++) {
-        float distance = L2_metric(lhs.data() + 128 * i, rhs.data() + 128 * j);
+        float distance = L2_metric(lhs_ptr + 128 * i, rhs.data() + 128 * j);
         if (distance < second_min_distance) {
           second_min_distance = distance;
           second_min_index = j;
