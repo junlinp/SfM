@@ -54,8 +54,10 @@ void FitImpl(const Eigen::Matrix<double, 3, 8>& lhs,const Eigen::Matrix<double, 
   Eigen::Matrix3d U = svd.matrixU();
   Eigen::Matrix3d V = svd.matrixV();
   // UDV^t
+  //std::printf("Minimum Singular Value : %f\n", singular(2));
   singular(2) = 0.0;
-  *models = U * singular.asDiagonal() * V.transpose();
+  //*models = U * singular.asDiagonal() * V.transpose();
+  *models = U * singular.asDiagonal() * V;
 
 }
 
@@ -66,12 +68,14 @@ void FitImpl(const Eigen::Matrix<double, 2, 8>& lhs,const Eigen::Matrix<double, 
   Eigen::Matrix3d T = Normal(lhs);
   Eigen::Matrix3d T_dot = Normal(rhs);
 
-  lhs_homogous = T * lhs_homogous;
-  rhs_homogous = T_dot * rhs_homogous;
-
+  //lhs_homogous = T * lhs_homogous;
+  //rhs_homogous = T_dot * rhs_homogous;
+  // lhs^t * F * rhs = 0
+  // (T * lhs)^t * F * (T_dot * rhs) = 0
+  // lhs^t * T^t * T^-t * F * T_dot-1 * T_dot * rhs = 0 
   FitImpl(lhs_homogous, rhs_homogous, models);
 
-  *models = T.transpose() * (*models) * T_dot;
+  //*models = (T.inverse().transpose()) * (*models) * T_dot.inverse();
 }
 
 void EightPointFundamentalSolver::Fit(const std::vector<EightPointFundamentalSolver::DataPointType >& data_points, MODEL_TYPE* models) {
@@ -84,6 +88,9 @@ void EightPointFundamentalSolver::Fit(const std::vector<EightPointFundamentalSol
     rhs(1, i) = data_points[i].second.y;
   }
   FitImpl(lhs, rhs, models);
+  for(auto item : data_points) {
+    std::printf("Data Point Fit Error : %f\n", Error(item, models[0]));
+  }
 }
 
 double EightPointFundamentalSolver::Error(const DataPointType& data_point, const MODEL_TYPE& model) {

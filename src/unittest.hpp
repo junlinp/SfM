@@ -138,15 +138,15 @@ TEST(Solver, Fundamental_Solver) {
 
 TEST(Solver, Fundamental_Solver_With_Ransac) {
 std::vector<KeyPoint> lhs_key_points = {
-      {0, 0}, {1, 0}, {2, 0},
-      {0, 1}, {1, 1}, {2, 1},
-      {1, 2}, {2, 2}, {5, 10}
+      {5, 10}, {0, 0}, {10, 0}, {20, 0},
+      {0, 10}, {10, 10}, {20, 10},
+      {10, 20}, {20, 20}
   };
 
   std::vector<KeyPoint> rhs_key_points = {
-      {1, 1}, {1, -1}, {-1, 1},
-      {1, 0}, {-2, 1}, {-3, 2},
-      {3, -1}, {-4, 2}, {10, 5}
+      {10, 5}, {10, 10}, {10, -10}, {-10, 10},
+      {10, 0}, {-20, 10}, {-30, 20},
+      {30, -10}, {-40, 20} 
   };
 
   std::vector<typename EightPointFundamentalSolver::DataPointType> datas;
@@ -159,5 +159,10 @@ std::vector<KeyPoint> lhs_key_points = {
   ransac_solver.Inference(datas, inlier_index, &F);
 
   std::cout << "F : " << F << std::endl;
+
+  EightPointFundamentalSolver solver;
+  for (auto data_point : datas) {
+    std::cout << " Error : " << solver.Error(data_point, F) << std::endl;
+  }
 }
 #endif  // SFM_SRC_UNITTEST_HPP_

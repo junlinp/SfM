@@ -18,22 +18,42 @@
 #include <numeric>
 #include <random>
 #include <vector>
+#include <iterator>
+
 class NormalSampler {
  public:
+ size_t index_size_;
+ std::vector<size_t> shuffle_index_;
+  NormalSampler(size_t index_size) : index_size_(index_size), shuffle_index_(index_size) {
+    std::iota(shuffle_index_.begin(), shuffle_index_.end(), 0);
+  }
+
   template <int MINIMUM_SAMPLE, class T>
-  static inline bool Sample(const std::vector<T>& samples,
+  inline bool Sample(const std::vector<T>& samples,
                             std::vector<int>& sample_index) {
+    assert(samples.size() == index_size_);
     if (samples.size() < MINIMUM_SAMPLE) {
       std::cerr << "samples with " << samples.size() << " can't select "
                 << MINIMUM_SAMPLE << " items." << std::endl;
       return false;
     }
-
-    sample_index.resize(samples.size());
-    std::default_random_engine engine;
-    std::iota(sample_index.begin(), sample_index.end(), 0);
-    std::shuffle(sample_index.begin(), sample_index.end(), engine);
-    sample_index.resize(MINIMUM_SAMPLE);
+    sample_index.reserve(index_size_);
+    std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
+    std::uniform_int_distribution<size_t> start_distribu(0, index_size_);
+    std::random_device rd;
+    std::mt19937 engine(rd());
+    size_t offset = start_distribu(engine);
+    // selection sampling
+    size_t selected_count = 0;
+    for(size_t i = 0; i < index_size_; i++) {
+      double select_probability = double(MINIMUM_SAMPLE - selected_count) / (index_size_ - i);
+      double sample_probability = uniform_distribution(engine);
+      if (sample_probability < select_probability) {
+        sample_index.push_back((offset + i) % index_size_);
+        selected_count++;
+      }
+    }
+    assert(sample_index.size() == MINIMUM_SAMPLE);
     return true;
   }
 };
@@ -42,8 +62,10 @@ class NormalSampler {
  * @brief Ransac Model
  *
  * Concept requiredment:
- *  - function signature: void Fit<std::vector<DataPointType>&, MODEL_TYPE* models)
- *  - function signature: double Error(const DataPointType&, const MODEL_TYPE& model);
+ *  - function signature: void Fit<std::vector<DataPointType>&, MODEL_TYPE*
+ * models)
+ *  - function signature: double Error(const DataPointType&, const MODEL_TYPE&
+ * model);
  * @tparam Kernel
  */
 template <class Kernel>
@@ -66,11 +88,12 @@ class Ransac {
                  std::vector<size_t> inlier_indexs, MODEL_TYPE* result_models) {
     std::size_t N = std::numeric_limits<std::size_t>::max();
     std::size_t sample_count = 0;
+    NormalSampler sampler(samples.size());
     while (N > sample_count) {
-        std::printf("Sample %lu of Total %lu\n", sample_count, N);
+      // std::printf("Sample %lu of Total %lu\n", sample_count, N);
       std::vector<int> sample_index;
       // Sample
-      NormalSampler::Sample<MINIMUM_DATA_POINT>(samples, sample_index);
+      sampler.Sample<MINIMUM_DATA_POINT>(samples, sample_index);
 
       MODEL_TYPE models[MODEL_FIT_NUMBER];
       std::vector<DataPointType> temp_sample;
@@ -100,8 +123,9 @@ class Ransac {
         }
         double epsilon =
             (samples.size() - inliner_index.size()) * 1.0 / (samples.size());
-            std::printf("SAMPLE SIZE = %lu, inliner_index SIZE = %lu\n", samples.size(), inliner_index.size());
-        std::printf("EPSILON = %lf\n", epsilon);
+        // std::printf("SAMPLE SIZE = %lu, inliner_index SIZE = %lu\n",
+        // samples.size(), inliner_index.size());
+        // std::printf("EPSILON = %lf\n", epsilon);
         size_t temp_N =
             std::ceil(std::log(1 - 0.99) /
                       std::log(1 - std::pow(1 - epsilon, MODEL_FREEDOM)));

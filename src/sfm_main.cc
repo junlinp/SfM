@@ -7,7 +7,7 @@
 #include "solver/fundamental_solver.hpp"
 #include "ransac.hpp"
 
-void ComputeFundamentalMatrix(const std::vector<KeyPoint>& lhs_keypoint,
+bool ComputeFundamentalMatrix(const std::vector<KeyPoint>& lhs_keypoint,
                               const std::vector<KeyPoint>& rhs_keypoint,
                               Eigen::Matrix3d* fundamental_matrix) {
   assert(lhs_keypoint.size() == rhs_keypoint.size());
@@ -19,6 +19,8 @@ void ComputeFundamentalMatrix(const std::vector<KeyPoint>& lhs_keypoint,
   Ransac<EightPointFundamentalSolver> ransac_solver;
   std::vector<size_t> inlier_indexs;
   ransac_solver.Inference(datas, inlier_indexs, fundamental_matrix);
+
+  return inlier_indexs.size() > 30;
 }
 
 int main(int argc, char** argv) {
@@ -53,9 +55,12 @@ int main(int argc, char** argv) {
         }
 
         Eigen::Matrix3d F;
-        ComputeFundamentalMatrix(lhs, rhs, &F);
-        fundamental_matrix.insert({pair, F});
+        if (ComputeFundamentalMatrix(lhs, rhs, &F)) {
+            fundamental_matrix.insert({pair, F});
+        }
     }
+    std::printf("%lu Matches are reserved after fundamental matrix filter\n", fundamental_matrix.size());
+
     // whether the graph is connected.
 
     // Compute the P matrix for each images
