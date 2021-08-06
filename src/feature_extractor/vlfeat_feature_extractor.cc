@@ -90,7 +90,7 @@ bool VlfeatFeatureExtractor::FeatureExtractor(SfMData& sfm_data) {
     }
     for (auto& tt : t) {
         size_t key_point_count = tt.get();
-        std::printf("Feature Extractor %lu Keypoint ---%f %%\n", key_point_count, 100.0 * ++count / view_size);
+        std::printf("Feature Extractor %lu Keypoint --- %f %%\n", key_point_count, 100.0 * ++count / view_size);
     }
 
     return true;

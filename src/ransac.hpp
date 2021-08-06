@@ -15,22 +15,24 @@
 // N = log(1 - p) / log(1 - w^s)
 //
 #include <algorithm>
+#include <iterator>
 #include <numeric>
 #include <random>
 #include <vector>
-#include <iterator>
+#include <set>
 
 class NormalSampler {
  public:
- size_t index_size_;
- std::vector<size_t> shuffle_index_;
-  NormalSampler(size_t index_size) : index_size_(index_size), shuffle_index_(index_size) {
+  size_t index_size_;
+  std::vector<size_t> shuffle_index_;
+  NormalSampler(size_t index_size)
+      : index_size_(index_size), shuffle_index_(index_size) {
     std::iota(shuffle_index_.begin(), shuffle_index_.end(), 0);
   }
 
   template <int MINIMUM_SAMPLE, class T>
   inline bool Sample(const std::vector<T>& samples,
-                            std::vector<int>& sample_index) {
+                     std::vector<int>& sample_index) {
     assert(samples.size() == index_size_);
     if (samples.size() < MINIMUM_SAMPLE) {
       std::cerr << "samples with " << samples.size() << " can't select "
@@ -45,8 +47,9 @@ class NormalSampler {
     size_t offset = start_distribu(engine);
     // selection sampling
     size_t selected_count = 0;
-    for(size_t i = 0; i < index_size_; i++) {
-      double select_probability = double(MINIMUM_SAMPLE - selected_count) / (index_size_ - i);
+    for (size_t i = 0; i < index_size_; i++) {
+      double select_probability =
+          double(MINIMUM_SAMPLE - selected_count) / (index_size_ - i);
       double sample_probability = uniform_distribution(engine);
       if (sample_probability < select_probability) {
         sample_index.push_back((offset + i) % index_size_);
@@ -85,7 +88,7 @@ class Ransac {
 
  public:
   bool Inference(const std::vector<DataPointType>& samples,
-                 std::vector<size_t> inlier_indexs, MODEL_TYPE* result_models) {
+                 std::vector<size_t>& inlier_indexs, MODEL_TYPE* result_models) {
     std::size_t N = std::numeric_limits<std::size_t>::max();
     std::size_t sample_count = 0;
     NormalSampler sampler(samples.size());
@@ -108,10 +111,16 @@ class Ransac {
       for (MODEL_TYPE model_candicate : models) {
         std::vector<size_t> inliner_index;
         inliner_index.reserve(samples.size());
+        inliner_index.assign(sample_index.begin(), sample_index.end());
+        std::set<size_t> inlier_set;
+        inlier_set.insert(sample_index.begin(), sample_index.end());
         for (int i = 0; i < samples.size(); i++) {
-          double error = Kernel::Error(samples[i], model_candicate);
-          if (error < threshold) {
-            inliner_index.push_back(i);
+          if (inlier_set.find(i) == inlier_set.end()) {
+            double error = Kernel::Error(samples[i], model_candicate);
+            if (error < threshold) {
+              inliner_index.push_back(i);
+              inlier_set.insert(i);
+            }
           }
         }
         // epsilon = 1 - (inliners) / total_size

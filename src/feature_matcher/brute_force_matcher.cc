@@ -1,19 +1,10 @@
 #include "brute_force_matcher.hpp"
 
-#include <cmath>
 #include <iostream>
 
 #include "internal/thread_pool.hpp"
+#include "metric.hpp"
 
-float L2_metric(float* lhs, float* rhs) {
-  float sum = 0.0f;
-
-  for (int i = 0; i < 128; i++) {
-    float temp = lhs[i] - rhs[i];
-    sum += temp * temp;
-  }
-  return std::sqrt(sum);
-}
 
 void BruteForceMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs) {
   // Initial data

@@ -19,8 +19,8 @@ int main(int argc, char** argv) {
       std::printf("Load %s Finish.\n", argv[1]);
     }
 
-    //auto extractor = VlfeatFeatureExtractor();
-    auto extractor = OpenCVORBFeatureExtractor();
+    auto extractor = VlfeatFeatureExtractor();
+    //auto extractor = OpenCVORBFeatureExtractor();
     sfm_data.key_points.clear();
     sfm_data.descriptors.clear();
     extractor.FeatureExtractor(sfm_data);

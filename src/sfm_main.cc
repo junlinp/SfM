@@ -19,7 +19,7 @@ bool ComputeFundamentalMatrix(const std::vector<KeyPoint>& lhs_keypoint,
   Ransac<EightPointFundamentalSolver> ransac_solver;
   std::vector<size_t> inlier_indexs;
   ransac_solver.Inference(datas, inlier_indexs, fundamental_matrix);
-
+  std::printf("inlier : %lu\n", inlier_indexs.size());
   return inlier_indexs.size() > 30;
 }
 
@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     std::map<Pair, Eigen::Matrix3d> fundamental_matrix;
     for (const auto& iter : sfm_data.matches) {
         Pair pair = iter.first;
-        if (iter.second.size() < 8) {
+        if (iter.second.size() < 30) {
             continue;
         }
         std::printf("Compute Fundamental Matrix for pair <%lld, %lld>\n", pair.first, pair.second);

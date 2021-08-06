@@ -107,14 +107,48 @@ TEST(Ransac, Fit_Line) {
 
 TEST(Solver, Fundamental_Solver) {
   EightPointFundamentalSolver solver;
-  std::vector<KeyPoint> lhs_key_points = {
+  std::vector<KeyPoint> rhs_key_points = {
       {0, 0}, {1, 0}, {2, 0},
       {0, 1}, {1, 1}, {2, 1},
       {1, 2}, {2, 2}
   };
 
-  std::vector<KeyPoint> rhs_key_points = {
+  std::vector<KeyPoint> lhs_key_points = {
       {1, 1}, {1, -1}, {-1, 1},
+      {1, 0}, {-2, 1}, {-3, 2},
+      {3, -1}, {-4, 2}
+  };
+
+  std::vector<typename EightPointFundamentalSolver::DataPointType>  datas;
+  for(int i = 0; i < lhs_key_points.size(); i++) {
+    datas.push_back({lhs_key_points[i], rhs_key_points[i]});
+  }
+
+  Eigen::Matrix3d F;
+  solver.Fit(datas, &F);
+  //F << 1.0, 1.0, 0.0,
+  //     0.0, 1.0, 0.0,
+  //     0.0, 0.0, 0.0;
+  std::cout << "F : " << F << std::endl;
+  Eigen::Matrix3d true_f;
+  true_f << 1.0, 1.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0;
+  for (auto data_point : datas) {
+    std::cout << " Error : " << solver.Error(data_point, F) << std::endl;
+    std::cout << " true Error : " << solver.Error(data_point, true_f) << std::endl;
+  }
+}
+TEST(Solver, Fundamental_Solver_ERROR_Estimate) {
+  EightPointFundamentalSolver solver;
+  std::vector<KeyPoint> rhs_key_points = {
+      {5, 10}, {1, 0}, {2, 0},
+      {0, 1}, {1, 1}, {2, 1},
+      {1, 2}, {2, 2}
+  };
+
+  std::vector<KeyPoint> lhs_key_points = {
+      {10, 5}, {1, -1}, {-1, 1},
       {1, 0}, {-2, 1}, {-3, 2},
       {3, -1}, {-4, 2}
   };
@@ -137,13 +171,13 @@ TEST(Solver, Fundamental_Solver) {
 }
 
 TEST(Solver, Fundamental_Solver_With_Ransac) {
-std::vector<KeyPoint> lhs_key_points = {
+std::vector<KeyPoint> rhs_key_points = {
       {5, 10}, {0, 0}, {10, 0}, {20, 0},
       {0, 10}, {10, 10}, {20, 10},
       {10, 20}, {20, 20}
   };
 
-  std::vector<KeyPoint> rhs_key_points = {
+  std::vector<KeyPoint> lhs_key_points = {
       {10, 5}, {10, 10}, {10, -10}, {-10, 10},
       {10, 0}, {-20, 10}, {-30, 20},
       {30, -10}, {-40, 20} 

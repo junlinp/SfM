@@ -6,23 +6,20 @@
 
 #include <cassert>
 #include <iostream>
-
+// TODO (junlinp) :
+// Error will not be zero for the samples used to Fit the model.
 
 Eigen::Matrix3d Normal(const Eigen::Matrix<double, 2, 8>& data) {
 
   Eigen::Matrix<double, 2, 1> center = data.rowwise().mean();
   size_t n = data.cols();
-  double normal = 0.0;
-  for (int i = 0; i < n; i++) {
-    normal += (data.col(i) - center).norm();
-  }
-  //std::cout << "Normal Sum : " << (data.colwise() - center).colwise().norm().sum() << std::endl;
+  double normal = (data.colwise() - center).colwise().norm().sum();
 
-  double alpha = n * std::sqrt(2) / normal;
-  Eigen::Matrix2d Identity = Eigen::Matrix2d::Identity();
+  double alpha = n * std::sqrt(2.0) / normal;
   Eigen::Matrix3d res;
-  res << alpha * Identity, alpha * center,
-         0, 0, 1;
+  res << alpha ,     0.0, -alpha * center(0),
+         0.0   ,   alpha, -alpha * center(1),
+         0.0   ,     0.0, 1.0;
   return res;
 }
 
@@ -30,9 +27,17 @@ void FitImpl(const Eigen::Matrix<double, 3, 8>& lhs,const Eigen::Matrix<double, 
   Eigen::Matrix<double, 8, 9> A;
 
   for(int i = 0; i < 8; i++) {
-    Eigen::Matrix<double, 9, 1> row;
-    row << lhs(0, i) * rhs.col(i), lhs(1, i) * rhs.col(i), lhs(2, i) * rhs.col(i);
-    A.row(i) = row.transpose();
+    Eigen::Matrix<double, 1, 9> row;
+    double x = lhs(0, i);
+    double y = lhs(1, i);
+    double x_dot = rhs(0, i);
+    double y_dot = rhs(1, i);
+    row << rhs(0, i) * lhs.col(i).transpose(),
+        rhs(1, i) * lhs.col(i).transpose(), rhs(2, i) * lhs.col(i).transpose();
+    row << x_dot * x, x_dot * y, x_dot,
+           y_dot * x, y_dot * y, y_dot, 
+           x, y, 1.0;
+    A.row(i) = row;
   }
   Eigen::Matrix<double, 9, 9> ATA = A.transpose() * A;
 
@@ -54,11 +59,11 @@ void FitImpl(const Eigen::Matrix<double, 3, 8>& lhs,const Eigen::Matrix<double, 
   Eigen::Matrix3d U = svd.matrixU();
   Eigen::Matrix3d V = svd.matrixV();
   // UDV^t
-  //std::printf("Minimum Singular Value : %f\n", singular(2));
+  // std::printf("Minimum Singular Value : %f\n", singular(2));
   singular(2) = 0.0;
-  //*models = U * singular.asDiagonal() * V.transpose();
-  *models = U * singular.asDiagonal() * V;
-
+  *models = U * singular.asDiagonal() * V.transpose();
+  // *models = U * singular.asDiagonal() * V;
+  // std::cout << rhs.transpose() * F * lhs << std::endl;
 }
 
 void FitImpl(const Eigen::Matrix<double, 2, 8>& lhs,const Eigen::Matrix<double, 2, 8>& rhs, Eigen::Matrix3d* models) {
@@ -68,14 +73,14 @@ void FitImpl(const Eigen::Matrix<double, 2, 8>& lhs,const Eigen::Matrix<double, 
   Eigen::Matrix3d T = Normal(lhs);
   Eigen::Matrix3d T_dot = Normal(rhs);
 
-  //lhs_homogous = T * lhs_homogous;
-  //rhs_homogous = T_dot * rhs_homogous;
+  lhs_homogous = T * lhs_homogous;
+  rhs_homogous = T_dot * rhs_homogous;
   // lhs^t * F * rhs = 0
   // (T * lhs)^t * F * (T_dot * rhs) = 0
   // lhs^t * T^t * T^-t * F * T_dot-1 * T_dot * rhs = 0 
   FitImpl(lhs_homogous, rhs_homogous, models);
 
-  //*models = (T.inverse().transpose()) * (*models) * T_dot.inverse();
+  *models = T_dot.transpose() * (*models) * T;
 }
 
 void EightPointFundamentalSolver::Fit(const std::vector<EightPointFundamentalSolver::DataPointType >& data_points, MODEL_TYPE* models) {
@@ -88,9 +93,11 @@ void EightPointFundamentalSolver::Fit(const std::vector<EightPointFundamentalSol
     rhs(1, i) = data_points[i].second.y;
   }
   FitImpl(lhs, rhs, models);
+  /*
   for(auto item : data_points) {
     std::printf("Data Point Fit Error : %f\n", Error(item, models[0]));
   }
+  */
 }
 
 double EightPointFundamentalSolver::Error(const DataPointType& data_point, const MODEL_TYPE& model) {
@@ -102,9 +109,9 @@ double EightPointFundamentalSolver::Error(const DataPointType& data_point, const
   lhs_vector << lhs.x, lhs.y, 1.0;
   rhs_vector << rhs.x, rhs.y, 1.0;
 
-  Eigen::Vector3d lhs_f = lhs_vector.transpose() * model;
-  Eigen::Vector3d rhs_f = rhs_vector.transpose() * model.transpose();
+  Eigen::Vector3d rhs_f = rhs_vector.transpose() * model;
+  Eigen::Vector3d lhs_f = model.transpose() * lhs_vector; 
   auto squared = [](double n) { return n * n;};
   double deno = squared(lhs_f(0)) + squared(lhs_f(1)) + squared(rhs_f(0)) + squared(rhs_f(1));
-  return squared((lhs_vector.transpose() * model).dot(rhs_vector)) / deno;
+  return squared((rhs_vector.transpose() * model).dot(lhs_vector)) / deno;
 }
