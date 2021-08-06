@@ -53,6 +53,96 @@ bool ComputeProjectiveReconstruction(const Eigen::Matrix3d& F, Mat34& P1, Mat34&
   P2 << VectorToSkewMatrix(e_dot) * F, e_dot;
   return true;
 }
+
+#include <queue>
+
+bool ExistOneKey(std::set<IndexT> set, std::pair<IndexT, IndexT> item) {
+  int lhs_exist = (set.find(item.first) != set.end());
+  int rhs_exist = (set.find(item.second) != set.end());
+  return lhs_exist ^ rhs_exist;
+}
+
+void Solve(const Mat34& A, const Eigen::Vector3d& b, Eigen::Vector4d& x) {
+  Eigen::Matrix3d A33 = A.block(0, 0, 3, 3);
+
+  Eigen::Vector3d x_ = A33.inverse() * (b - A.col(3));
+  x << x_, 1.0;
+}
+
+void ComputeHTransform(const Mat34& sour, const Mat34& dest, Eigen::Matrix4d& H) {
+  // sour * H = dest
+  // We assume H :
+  //   h11  h12  h13  h14
+  //   h21  h22  h23  h24
+  //   h31  h32  h33  h34
+  //   1.0  1.0  1.0  1.0
+
+  Eigen::Vector4d h1, h2, h3, h4;
+  Solve(sour, dest.col(0), h1);
+  Solve(sour, dest.col(1), h2);
+  Solve(sour, dest.col(2), h3);
+  Solve(sour, dest.col(3), h4);
+  H << h1, h2, h3, h4; 
+}
+
+
+void ProjectiveReconstruction(const std::map<Pair, Eigen::Matrix3d>& fundamental_matrix, std::map<IndexT, Mat34> projective_reconstruction) {
+  using Fundamental_Matrix_Type = typename std::map<Pair, Eigen::Matrix3d>::value_type;
+  std::queue<Fundamental_Matrix_Type> que;
+  for (auto item : fundamental_matrix) {
+    que.push(item);
+  }
+  std::set<IndexT> processed_index;
+
+  // A. Init
+  Fundamental_Matrix_Type init_seed = que.front();
+  que.pop();
+  IndexT lhs_index = init_seed.first.first;
+  IndexT rhs_index = init_seed.first.second;
+  ComputeProjectiveReconstruction(init_seed.second,
+                                  projective_reconstruction[lhs_index],
+                                  projective_reconstruction[rhs_index]);
+  processed_index.insert(lhs_index);
+  processed_index.insert(rhs_index);
+  
+  // 
+  bool found_and_continue = true;
+  while(found_and_continue) {
+    found_and_continue = false;
+    std::queue<Fundamental_Matrix_Type> temp_que;
+    while (!que.empty()) {
+      Fundamental_Matrix_Type need_to_process = que.front();
+      que.pop();
+
+      if (ExistOneKey(processed_index, need_to_process.first)) {
+        found_and_continue = true;
+        IndexT lhs_index = init_seed.first.first;
+        IndexT rhs_index = init_seed.first.second;
+
+        Mat34 P1, P2;
+        ComputeProjectiveReconstruction(need_to_process.second, P1, P2);
+        if (processed_index.find(lhs_index) == processed_index.end()) {
+          Eigen::Matrix4d H;
+          ComputeHTransform(P2, projective_reconstruction.at(rhs_index), H);
+          projective_reconstruction[lhs_index] = P1 * H;
+
+        } else {
+          Eigen::Matrix4d H;
+          ComputeHTransform(P1, projective_reconstruction.at(lhs_index), H);
+          projective_reconstruction[rhs_index] = P2 * H;
+        }
+
+        processed_index.insert(lhs_index);
+        processed_index.insert(rhs_index);
+
+      } else {
+        temp_que.push(need_to_process);
+      }
+    }
+    std::swap(que, temp_que);
+  }
+}
+
 int main(int argc, char** argv) {
   if (argc != 2) {
     return 1;
@@ -104,12 +194,18 @@ int main(int argc, char** argv) {
 
     // Compute the P matrix for each images
     // using fundamental matrix.
-    std::map<IndexT, Mat34> project_reconstruction;
+    std::map<IndexT, Mat34> projective_reconstruction;
+    ProjectiveReconstruction(fundamental_matrix, projective_reconstruction);    
 
     // Compute camera matrix K with the 
     // IAC
+    //ComputeIntrinsicMatrix(projective_reconstruction);
+
+    // triangulation
+    //
 
     // bundle adjustment the parameters rotation and translation
+
     Save(sfm_data, argv[1]);
 
     return 0;
