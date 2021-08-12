@@ -1,20 +1,19 @@
 #include <iostream>
 
+#include "Eigen/Dense"
+#include "internal/function_programming.hpp"
+#include "ransac.hpp"
 #include "sfm_data.hpp"
 #include "sfm_data_io.hpp"
-
-#include "Eigen/Dense"
 #include "solver/fundamental_solver.hpp"
-#include "ransac.hpp"
-#include "internal/function_programming.hpp"
 
 bool ComputeFundamentalMatrix(const std::vector<KeyPoint>& lhs_keypoint,
                               const std::vector<KeyPoint>& rhs_keypoint,
                               Eigen::Matrix3d* fundamental_matrix) {
   assert(lhs_keypoint.size() == rhs_keypoint.size());
 
-  std::vector<typename EightPointFundamentalSolver::DataPointType>  datas;
-  for(int i = 0; i < lhs_keypoint.size(); i++) {
+  std::vector<typename EightPointFundamentalSolver::DataPointType> datas;
+  for (int i = 0; i < lhs_keypoint.size(); i++) {
     datas.push_back({lhs_keypoint[i], rhs_keypoint[i]});
   }
   Ransac<EightPointFundamentalSolver> ransac_solver;
@@ -27,10 +26,8 @@ using Mat34 = Eigen::Matrix<double, 3, 4, Eigen::RowMajor>;
 
 Eigen::Matrix3d VectorToSkewMatrix(const Eigen::Vector3d& v) {
   Eigen::Matrix3d res;
-  double a1 = v(0), a2 =  v(1), a3 = v(2);
-  res << 0.0, -a3, a2,
-         a3 ,  0.0, -a1,
-         -a2, a1, 0.0;
+  double a1 = v(0), a2 = v(1), a3 = v(2);
+  res << 0.0, -a3, a2, a3, 0.0, -a1, -a2, a1, 0.0;
   return res;
 }
 
@@ -39,7 +36,8 @@ Eigen::Vector3d NullSpace(const Eigen::Matrix3d& m) {
   return svd.matrixV().col(2);
 }
 
-bool ComputeProjectiveReconstruction(const Eigen::Matrix3d& F, Mat34& P1, Mat34& P2) {
+bool ComputeProjectiveReconstruction(const Eigen::Matrix3d& F, Mat34& P1,
+                                     Mat34& P2) {
   // A. Compute Null Space of the traspose of F
 
   // B.Construct the {P1, P2} as follow:
@@ -47,16 +45,14 @@ bool ComputeProjectiveReconstruction(const Eigen::Matrix3d& F, Mat34& P1, Mat34&
   // P2 = [(e')_x * F | e']
   Eigen::Vector3d e_dot = NullSpace(F);
 
-  P1 << 1.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0;
+  P1 << 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0;
   P2 << VectorToSkewMatrix(e_dot) * F, e_dot;
   return true;
 }
 
 #include <queue>
 
-bool ExistOneKey(std::set<IndexT> set, std::pair<IndexT, IndexT> item) {
+bool ExistOneKey(const std::set<IndexT>& set, std::pair<IndexT, IndexT> item) {
   int lhs_exist = (set.find(item.first) != set.end());
   int rhs_exist = (set.find(item.second) != set.end());
   return lhs_exist ^ rhs_exist;
@@ -69,7 +65,8 @@ void Solve(const Mat34& A, const Eigen::Vector3d& b, Eigen::Vector4d& x) {
   x << x_, 1.0;
 }
 
-void ComputeHTransform(const Mat34& sour, const Mat34& dest, Eigen::Matrix4d& H) {
+void ComputeHTransform(const Mat34& sour, const Mat34& dest,
+                       Eigen::Matrix4d& H) {
   // sour * H = dest
   // We assume H :
   //   h11  h12  h13  h14
@@ -82,12 +79,14 @@ void ComputeHTransform(const Mat34& sour, const Mat34& dest, Eigen::Matrix4d& H)
   Solve(sour, dest.col(1), h2);
   Solve(sour, dest.col(2), h3);
   Solve(sour, dest.col(3), h4);
-  H << h1, h2, h3, h4; 
+  H << h1, h2, h3, h4;
 }
 
-
-void ProjectiveReconstruction(const std::map<Pair, Eigen::Matrix3d>& fundamental_matrix, std::map<IndexT, Mat34> projective_reconstruction) {
-  using Fundamental_Matrix_Type = typename std::map<Pair, Eigen::Matrix3d>::value_type;
+void ProjectiveReconstruction(
+    const std::map<Pair, Eigen::Matrix3d>& fundamental_matrix,
+    std::map<IndexT, Mat34>& projective_reconstruction) {
+  using Fundamental_Matrix_Type =
+      typename std::map<Pair, Eigen::Matrix3d>::value_type;
   std::queue<Fundamental_Matrix_Type> que;
   for (auto item : fundamental_matrix) {
     que.push(item);
@@ -104,10 +103,10 @@ void ProjectiveReconstruction(const std::map<Pair, Eigen::Matrix3d>& fundamental
                                   projective_reconstruction[rhs_index]);
   processed_index.insert(lhs_index);
   processed_index.insert(rhs_index);
-  
-  // 
+  //
   bool found_and_continue = true;
-  while(found_and_continue) {
+
+  while (found_and_continue) {
     found_and_continue = false;
     std::queue<Fundamental_Matrix_Type> temp_que;
     while (!que.empty()) {
@@ -116,8 +115,8 @@ void ProjectiveReconstruction(const std::map<Pair, Eigen::Matrix3d>& fundamental
 
       if (ExistOneKey(processed_index, need_to_process.first)) {
         found_and_continue = true;
-        IndexT lhs_index = init_seed.first.first;
-        IndexT rhs_index = init_seed.first.second;
+        IndexT lhs_index = need_to_process.first.first;
+        IndexT rhs_index = need_to_process.first.second;
 
         Mat34 P1, P2;
         ComputeProjectiveReconstruction(need_to_process.second, P1, P2);
@@ -134,12 +133,86 @@ void ProjectiveReconstruction(const std::map<Pair, Eigen::Matrix3d>& fundamental
 
         processed_index.insert(lhs_index);
         processed_index.insert(rhs_index);
-
       } else {
         temp_que.push(need_to_process);
       }
     }
-    std::swap(que, temp_que);
+    que = std::move(temp_que);
+  }
+}
+// row and col start with 1 instead of 0
+Eigen::Matrix<double, 1, 16> GenerateCoeffient(const Mat34 P, size_t row,
+                                               size_t col) {
+  Eigen::Matrix<double, 1, 16> res;
+  Eigen::Vector4d rhs = P.row(col - 1);
+  res << P(row - 1, 0) * rhs.transpose(), P(row - 1, 1) * rhs.transpose(),
+      P(row - 1, 2) * rhs.transpose(), P(row - 1, 3) * rhs.transpose();
+  return res;
+}
+
+// The Matrix K is a 3 x 3 matrix with format as follow:
+//  |  alpha_x    0     cx |
+//  |     0    alpha_y  cy |
+//  |     0       0      1 |
+//
+// Such that the dual omega = KK^T
+//      |   alpha_x * alpha_x + cx * cx        cx * cy      cx |
+// KK^T =|     cx * cy           alpha_y * alpha_y * cy * cy cy |
+//      |        cx                          cy             1  |
+//
+//  KK^T =   P * Q * P^T
+//  We will solve Q with the constraint about the matrix KK^T
+//
+void ComputeIntrinsicMatrix(std::map<IndexT, Mat34>& projective_reconstruction,
+                            size_t image_width, size_t image_height) {
+  // cx = image_width / 2
+  // cy = image_height / 2
+  // alpha_x / alpha y = image_width / image_height (not used)
+  // this is the three constraint to solve a linear function.
+  //
+  // 16 parameter need to 8 photos to compute at least.
+  //
+
+  size_t cx = image_width / 2;
+  size_t cy = image_width / 2;
+  //  4 * projective_reconstruction * 16
+  size_t cameras_size = projective_reconstruction.size();
+  Eigen::MatrixXd coeffient(4 * cameras_size, 16);
+  Eigen::VectorXd constant(4 * cameras_size);
+  size_t count = 0;
+  for (auto& item_pair : projective_reconstruction) {
+    const Mat34& P_i = item_pair.second;
+    coeffient.row(count * 4 + 0) = GenerateCoeffient(P_i, 1, 3);
+    coeffient.row(count * 4 + 1) = GenerateCoeffient(P_i, 2, 3);
+    coeffient.row(count * 4 + 2) = GenerateCoeffient(P_i, 3, 1);
+    coeffient.row(count * 4 + 3) = GenerateCoeffient(P_i, 3, 2);
+    constant(count * 4 + 0) = cx;
+    constant(count * 4 + 1) = cy;
+    constant(count * 4 + 2) = cx;
+    constant(count * 4 + 3) = cy;
+    count++;
+  }
+  std::cout << "Generate coeffient Finish" << std::endl;
+
+  // Solve Least-Squares Method
+  Eigen::VectorXd Q_coeffient = coeffient.colPivHouseholderQr().solve(constant);
+  std::cout << "coeffient : " << Q_coeffient << std::endl;
+  Eigen::Matrix4d Q =
+      Eigen::Map<Eigen::Matrix<double, 4, 4>>(Q_coeffient.data());
+  std::cout << "Solved " << Q << std::endl;
+  // SVD Q = HIH with I is diag(1, 1, 1, 0)
+  Eigen::JacobiSVD svd(Q, Eigen::ComputeFullU | Eigen::ComputeFullV);
+  Eigen::Vector4d diag = svd.singularValues();
+  std::cout << "Singular Value : " << diag << std::endl;
+  diag(3) = 0.0;
+
+  Q = svd.matrixU() * diag.asDiagonal() * svd.matrixV();
+  std::cout << "Q Matrix : " << Q << std::endl;
+  svd = Eigen::JacobiSVD(Q, Eigen::ComputeFullV);
+  Eigen::Matrix4d H = svd.matrixV();
+
+  for (auto& item : projective_reconstruction) {
+    item.second = item.second * H;
   }
 }
 
@@ -155,58 +228,68 @@ int main(int argc, char** argv) {
   } else {
     std::printf("Load Sfm Data From %s Fails\n", argv[1]);
   }
-    // Filter With fundamental matrix
-    std::map<Pair, Eigen::Matrix3d> fundamental_matrix;
-    for (const auto& iter : sfm_data.matches) {
-        Pair pair = iter.first;
-        if (iter.second.size() < 30) {
-            continue;
-        }
-        std::printf("Compute Fundamental Matrix for pair <%lld, %lld>\n", pair.first, pair.second);
-        const std::vector<KeyPoint>& lhs_keypoints = sfm_data.key_points.at(pair.first);
-        const std::vector<KeyPoint>& rhs_keypoints = sfm_data.key_points.at(pair.second);
-
-        std::vector<KeyPoint> lhs, rhs;
-        lhs.reserve(iter.second.size());
-        rhs.reserve(iter.second.size());
-        for (const Matche& m : iter.second) {
-            lhs.push_back(lhs_keypoints[m.first]);
-            rhs.push_back(rhs_keypoints[m.second]);
-        }
-
-        Eigen::Matrix3d F;
-        if (ComputeFundamentalMatrix(lhs, rhs, &F)) {
-            fundamental_matrix.insert({pair, F});
-        }
+  // Filter With fundamental matrix
+  std::map<Pair, Eigen::Matrix3d> fundamental_matrix;
+  for (const auto& iter : sfm_data.matches) {
+    Pair pair = iter.first;
+    if (iter.second.size() < 30) {
+      continue;
     }
-    std::printf("%lu Matches are reserved after fundamental matrix filter\n", fundamental_matrix.size());
+    std::printf("Compute Fundamental Matrix for pair <%lld, %lld>\n",
+                pair.first, pair.second);
+    const std::vector<KeyPoint>& lhs_keypoints =
+        sfm_data.key_points.at(pair.first);
+    const std::vector<KeyPoint>& rhs_keypoints =
+        sfm_data.key_points.at(pair.second);
 
-    std::set<IndexT> id_set;
-    auto v = fundamental_matrix | Transform([](auto item){ return item.first;}) | ToVector();
-    for (auto i : v) {
-      id_set.insert(i.first);
-      id_set.insert(i.second);
-    }
-    // whether the graph is connected.
-    if (id_set.size() != sfm_data.views.size()) {
-      std::printf("Warning: The visible graph is not connected after filter\n");
+    std::vector<KeyPoint> lhs, rhs;
+    lhs.reserve(iter.second.size());
+    rhs.reserve(iter.second.size());
+    for (const Matche& m : iter.second) {
+      lhs.push_back(lhs_keypoints[m.first]);
+      rhs.push_back(rhs_keypoints[m.second]);
     }
 
-    // Compute the P matrix for each images
-    // using fundamental matrix.
-    std::map<IndexT, Mat34> projective_reconstruction;
-    ProjectiveReconstruction(fundamental_matrix, projective_reconstruction);    
+    Eigen::Matrix3d F;
+    if (ComputeFundamentalMatrix(lhs, rhs, &F)) {
+      fundamental_matrix.insert({pair, F});
+    }
+  }
+  std::printf("%lu Matches are reserved after fundamental matrix filter\n",
+              fundamental_matrix.size());
 
-    // Compute camera matrix K with the 
-    // IAC
-    //ComputeIntrinsicMatrix(projective_reconstruction);
+  std::set<IndexT> id_set;
+  auto v = fundamental_matrix |
+           Transform([](auto item) { return item.first; }) | ToVector();
+  for (auto i : v) {
+    id_set.insert(i.first);
+    id_set.insert(i.second);
+  }
+  // whether the graph is connected.
+  if (id_set.size() != sfm_data.views.size()) {
+    std::printf("Warning: The visible graph is not connected after filter\n");
+  }
 
-    // triangulation
-    //
+  // Compute the P matrix for each images
+  // using fundamental matrix.
+  std::map<IndexT, Mat34> projective_reconstruction;
+  ProjectiveReconstruction(fundamental_matrix, projective_reconstruction);
+  std::cout << "Reconstruction : " << projective_reconstruction.size()
+            << std::endl;
+  for (auto iter : projective_reconstruction) {
+    std::cout << iter.second << std::endl;
+  }
 
-    // bundle adjustment the parameters rotation and translation
+  // Compute camera matrix K with the
+  // IAC
+  ComputeIntrinsicMatrix(projective_reconstruction, 3072, 2304);
 
-    Save(sfm_data, argv[1]);
+  // triangulation
+  //
 
-    return 0;
+  // bundle adjustment the parameters rotation and translation
+
+  Save(sfm_data, argv[1]);
+
+  return 0;
 }
