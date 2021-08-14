@@ -204,7 +204,8 @@ struct Scene {
   std::map<size_t, AlignedObservation> observations;
   std::map<size_t, AlignedObservation> noised_observations;
 
-  Scene(size_t cameras_num = 2, size_t point_num = 10, double error_sigma = 1.0) {
+  double error_sigma;
+  Scene(size_t cameras_num = 2, size_t point_num = 10, double error_sigma = 1.0) : error_sigma(error_sigma) {
     K << 1866.666667, 0.0, 960, 0.0, 1581.58996, 540, 0.0, 0.0, 1.0;
     std::random_device rd;
     std::default_random_engine engine(rd());
@@ -310,18 +311,26 @@ struct Scene {
     for (auto& data_point : data_points) {
       res += ErrorEstimator::Error(data_point, F);
     }
-    return res;
+    size_t d = 8 + 3 * data_points.size();
+    size_t n = data_points.size() * 4;
+    double error = error_sigma * std::sqrt(double(d) / n);
+    std::cout << " Error Lower bound : " << error << std::endl;
+    return std::sqrt(res / data_points.size() / 4.0);
   }
 };
 
 TEST(Fundamental, Performance) {
-  Scene scene;
-  // We need Solver
-  // We need a Error Estimator
-  Eigen::Matrix3d F;
-  scene.FundamentalMatrixCompute<EightPointFundamentalSolver>(F);
-  std::cout << F << std::endl;
-
-  std::cout << scene.FundamentalResiduals<SampsonError>(F) << std::endl;
+  double res = 0.0;
+  size_t test_case = 128;
+  for (int i = 0; i < test_case; i++) {
+    Scene scene(2, 1024 * 16);
+    // We need Solver
+    // We need a Error Estimator
+    Eigen::Matrix3d F;
+    scene.FundamentalMatrixCompute<EightPointFundamentalSolver>(F);
+    //std::cout << F << std::endl;
+    res +=  scene.FundamentalResiduals<SampsonError>(F);
+  }
+  std::cout << res / test_case  << std::endl;
 }
 #endif  // SFM_SRC_UNITTEST_HPP_
