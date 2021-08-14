@@ -1,3 +1,4 @@
+#include <fstream>
 #include <iostream>
 
 #include "Eigen/Dense"
@@ -6,12 +7,14 @@
 #include "sfm_data.hpp"
 #include "sfm_data_io.hpp"
 #include "solver/fundamental_solver.hpp"
+#include "solver/triangular_solver.hpp"
+#include "solver/algebra.hpp"
 
 bool ComputeFundamentalMatrix(const std::vector<KeyPoint>& lhs_keypoint,
                               const std::vector<KeyPoint>& rhs_keypoint,
                               Eigen::Matrix3d* fundamental_matrix) {
   assert(lhs_keypoint.size() == rhs_keypoint.size());
-
+  /*
   std::vector<typename EightPointFundamentalSolver::DataPointType> datas;
   for (int i = 0; i < lhs_keypoint.size(); i++) {
     datas.push_back({lhs_keypoint[i], rhs_keypoint[i]});
@@ -21,8 +24,9 @@ bool ComputeFundamentalMatrix(const std::vector<KeyPoint>& lhs_keypoint,
   ransac_solver.Inference(datas, inlier_indexs, fundamental_matrix);
   std::printf("inlier : %lu\n", inlier_indexs.size());
   return inlier_indexs.size() > 30;
+  */
+ return false;
 }
-using Mat34 = Eigen::Matrix<double, 3, 4, Eigen::RowMajor>;
 
 Eigen::Matrix3d VectorToSkewMatrix(const Eigen::Vector3d& v) {
   Eigen::Matrix3d res;
@@ -31,10 +35,6 @@ Eigen::Matrix3d VectorToSkewMatrix(const Eigen::Vector3d& v) {
   return res;
 }
 
-Eigen::Vector3d NullSpace(const Eigen::Matrix3d& m) {
-  Eigen::JacobiSVD svd(m, Eigen::ComputeFullV);
-  return svd.matrixV().col(2);
-}
 
 bool ComputeProjectiveReconstruction(const Eigen::Matrix3d& F, Mat34& P1,
                                      Mat34& P2) {
@@ -216,6 +216,37 @@ void ComputeIntrinsicMatrix(std::map<IndexT, Mat34>& projective_reconstruction,
   }
 }
 
+
+
+void PMatrixToCanonical(const Mat34& P, Eigen::Matrix4d& H) {
+  // P * H = [I | 0]
+  Eigen::Vector4d C = NullSpace(P);
+
+  H << P,
+       C.transpose();
+  H = H.inverse();
+}
+
+template <typename Point>
+void ToPly(const std::vector<Point>& points, const std::string& output) {
+  std::ofstream ofs(output);
+  // header
+  ofs << "ply" << std::endl;
+  ofs << "format ascii 1.0" << std::endl;
+  ofs << "element vertex " << points.size() << std::endl;
+  ofs << "property float x" << std::endl;
+  ofs << "property float y" << std::endl;
+  ofs << "property float z" << std::endl;
+  ofs << "end_header" << std::endl;
+
+  // body
+  for (const Point& p : points) {
+    ofs << p.x << " " << p.y << " " << p.z << std::endl;
+  }
+
+  ofs.close();
+}
+
 int main(int argc, char** argv) {
   if (argc != 2) {
     return 1;
@@ -278,6 +309,9 @@ int main(int argc, char** argv) {
             << std::endl;
   for (auto iter : projective_reconstruction) {
     std::cout << iter.second << std::endl;
+    Eigen::Matrix4d H;
+    PMatrixToCanonical(iter.second, H);
+    std::cout << "Canonical : " << iter.second * H << std::endl;
   }
 
   // Compute camera matrix K with the
@@ -286,6 +320,34 @@ int main(int argc, char** argv) {
 
   // triangulation
   //
+  for (auto item_pair : fundamental_matrix) {
+    auto match_pair = item_pair.first;
+    auto matches = sfm_data.matches.at(match_pair);
+    auto lhs_keypoint = sfm_data.key_points.at(match_pair.first);
+    auto rhs_keypoint = sfm_data.key_points.at(match_pair.second);
+
+    std::vector<Mat34> p_matrixs;
+    p_matrixs.push_back(projective_reconstruction.at(match_pair.first));
+    p_matrixs.push_back(projective_reconstruction.at(match_pair.second));
+    for (auto match : matches) {
+      std::vector<Eigen::Vector3d> obs;
+      Eigen::Vector3d lhs_ob, rhs_ob;
+
+      KeyPoint lhs = lhs_keypoint[match.first];
+      KeyPoint rhs = rhs_keypoint[match.second];
+      lhs_ob << lhs.x, lhs.y, 1.0;
+      rhs_ob << rhs.x, rhs.y, 1.0;
+      obs.push_back(lhs_ob);
+      obs.push_back(rhs_ob);
+      Eigen::Vector4d X;
+      DLT(p_matrixs, obs, X);
+      X.hnormalized();
+
+      sfm_data.structure_points.emplace_back(X(0), X(1), X(2));
+    }
+  }
+
+  ToPly(sfm_data.structure_points, "./sparse_point.ply");
 
   // bundle adjustment the parameters rotation and translation
 

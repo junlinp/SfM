@@ -16,6 +16,11 @@ using Pair = std::pair<IndexT, IndexT>;
 using Matche = std::pair<size_t, size_t>;
 using Matches = std::vector<Matche>;
 
+struct SparsePoint {
+    double x, y, z;
+    SparsePoint(double x = 0.0, double y = 0.0, double z = 0.0) : x(x), y(y), z(z) {}
+};
+
 struct SfMData {
     std::map<IndexT, View> views;
 
@@ -25,6 +30,10 @@ struct SfMData {
 
     // Matches
     std::map<Pair, Matches> matches;
+
+    // structure
+
+    std::vector<SparsePoint> structure_points;
 };
 
 #endif // SFM_DATA_H_

@@ -30,13 +30,13 @@ class NormalSampler {
     std::iota(shuffle_index_.begin(), shuffle_index_.end(), 0);
   }
 
-  template <int MINIMUM_SAMPLE, class T>
-  inline bool Sample(const std::vector<T>& samples,
+  template <int MINIMUM_SAMPLE, class Container, class T = typename std::decay_t<Container>::value_type>
+  inline bool Sample(const Container& samples,
                      std::vector<int>& sample_index) {
     assert(samples.size() == index_size_);
     if (samples.size() < MINIMUM_SAMPLE) {
-      std::cerr << "samples with " << samples.size() << " can't select "
-                << MINIMUM_SAMPLE << " items." << std::endl;
+      //std::cerr << "samples with " << samples.size() << " can't select "
+      //          << MINIMUM_SAMPLE << " items." << std::endl;
       return false;
     }
     sample_index.reserve(index_size_);
@@ -71,7 +71,7 @@ class NormalSampler {
  * model);
  * @tparam Kernel
  */
-template <class Kernel>
+template <class Kernel, class ErrorEstimator>
 class Ransac {
   static constexpr double chi_square_distribute[] = {
       0.0, 3.84, 5.99, 7.82, 9.49, 11.07, 12.59, 14.07, 15.51, 16.92, 18.31};
@@ -84,10 +84,11 @@ class Ransac {
   static constexpr decltype(Kernel::MODEL_FREEDOM) MODEL_FREEDOM =
       Kernel::MODEL_FREEDOM;
 
-  using MODEL_TYPE = typename Kernel::MODEL_TYPE;
+  using MODEL_TYPE = typename Kernel::ModelType;
 
  public:
-  bool Inference(const std::vector<DataPointType>& samples,
+ template<typename Container>
+  static bool Inference(const Container& samples,
                  std::vector<size_t>& inlier_indexs, MODEL_TYPE* result_models) {
     std::size_t N = std::numeric_limits<std::size_t>::max();
     std::size_t sample_count = 0;
@@ -99,7 +100,7 @@ class Ransac {
       sampler.Sample<MINIMUM_DATA_POINT>(samples, sample_index);
 
       MODEL_TYPE models[MODEL_FIT_NUMBER];
-      std::vector<DataPointType> temp_sample;
+      Container temp_sample;
       for (int index : sample_index) {
         temp_sample.push_back(samples[index]);
       }
@@ -116,7 +117,7 @@ class Ransac {
         inlier_set.insert(sample_index.begin(), sample_index.end());
         for (int i = 0; i < samples.size(); i++) {
           if (inlier_set.find(i) == inlier_set.end()) {
-            double error = Kernel::Error(samples[i], model_candicate);
+            double error = ErrorEstimator::Error(samples[i], model_candicate);
             if (error < threshold) {
               inliner_index.push_back(i);
               inlier_set.insert(i);
@@ -147,6 +148,15 @@ class Ransac {
       sample_count++;
     }
     return true;
+  }
+
+  static void Fit(const std::vector<DataPointType>& data_points, MODEL_TYPE& model) {
+    std::vector<size_t> placeholder_;
+    Inference(data_points, placeholder_, &model);
+  }
+
+  static double Error(const DataPointType& data_point,const MODEL_TYPE& model) {
+    return Kernel::Error(data_point, model);
   }
 };
 #endif  // RANSAC_H_

@@ -83,35 +83,17 @@ void FitImpl(const Eigen::Matrix<double, 2, 8>& lhs,const Eigen::Matrix<double, 
   *models = T_dot.transpose() * (*models) * T;
 }
 
-void EightPointFundamentalSolver::Fit(const std::vector<EightPointFundamentalSolver::DataPointType >& data_points, MODEL_TYPE* models) {
-  assert(data_points.size() == EightPointFundamentalSolver::MINIMUM_DATA_POINT);
+void EightPointFundamentalSolverImpl::Fit(
+    const std::vector<EightPointFundamentalSolverImpl::DataPointType,
+                      Eigen::aligned_allocator<
+                          EightPointFundamentalSolverImpl::DataPointType>>&
+        data_points,
+    Eigen::Matrix3d* models) {
+  assert(data_points.size() == EightPointFundamentalSolverImpl::MINIMUM_DATA_POINT);
   Eigen::Matrix<double, 2, 8> lhs, rhs;
-  for(int i = 0; i < 8; i++) {
-    lhs(0, i) = data_points[i].first.x;
-    lhs(1, i) = data_points[i].first.y;
-    rhs(0, i) = data_points[i].second.x;
-    rhs(1, i) = data_points[i].second.y;
+  for (int i = 0; i < 8; i++) {
+    lhs.col(i) = data_points[i].first;
+    rhs.col(i) = data_points[i].second;
   }
   FitImpl(lhs, rhs, models);
-  /*
-  for(auto item : data_points) {
-    std::printf("Data Point Fit Error : %f\n", Error(item, models[0]));
-  }
-  */
-}
-
-double EightPointFundamentalSolver::Error(const DataPointType& data_point, const MODEL_TYPE& model) {
-  // sampson error
-
-  KeyPoint lhs = data_point.first;
-  KeyPoint rhs = data_point.second;
-  Eigen::Vector3d lhs_vector, rhs_vector;
-  lhs_vector << lhs.x, lhs.y, 1.0;
-  rhs_vector << rhs.x, rhs.y, 1.0;
-
-  Eigen::Vector3d rhs_f = rhs_vector.transpose() * model;
-  Eigen::Vector3d lhs_f = model.transpose() * lhs_vector; 
-  auto squared = [](double n) { return n * n;};
-  double deno = squared(lhs_f(0)) + squared(lhs_f(1)) + squared(rhs_f(0)) + squared(rhs_f(1));
-  return squared((rhs_vector.transpose() * model).dot(lhs_vector)) / deno;
 }
