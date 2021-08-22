@@ -14,6 +14,7 @@
 #include "solver/fundamental_solver.hpp"
 #include "solver/algebra.hpp"
 #include "solver/triangular_solver.hpp"
+#include "solver/trifocal_tensor_solver.hpp"
 
 TEST(ThreadPool, Enqueue) {
   auto functor = [](int a) { return 2 * a; };
@@ -337,6 +338,27 @@ struct Scene {
 
      return (X - p.homogeneous()).norm();
   }
+
+
+  double TrifocalError() {
+    std::vector<TriPair> data_points;
+    for(int i = 0; i < 7; i++) {
+      TriPair t = {observations[0][i], observations[1][i],
+                  observations[2][i]};
+      data_points.push_back(t);
+    }
+
+    LinearSolver solver;
+    Trifocal model;
+    solver.Fit(data_points, model);
+    //std::cout << model << std::endl;
+    
+    double error = 0.0;
+    for (TriPair data_point : data_points) {
+      error += Error(data_point, model);
+    }
+    return error / data_points.size();
+  }
 };
 
 TEST(Fundamental, Performance) {
@@ -360,4 +382,9 @@ TEST(Triangular, Performance) {
   std::cout << scene.TriangularError(DLT) << std::endl;
 }
 
+TEST(Trifocal, Test) {
+  Scene scene(3, 7);
+
+  std::cout << scene.TrifocalError() << std::endl;
+}
 #endif  // SFM_SRC_UNITTEST_HPP_

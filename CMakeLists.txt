@@ -24,7 +24,7 @@ src/feature_extractor/vlfeat_feature_extractor.cc
 src/feature_extractor/opencv_orb_extractor.cc)
 target_link_libraries(FeatureExtractor PUBLIC SfMData PRIVATE vlfeat ${OpenCV_LIBS})
 
-add_library(Solver src/solver/fundamental_solver.cc src/solver/fundamental_solver.hpp src/solver/triangular_solver.cc)
+add_library(Solver src/solver/fundamental_solver.cc src/solver/fundamental_solver.hpp src/solver/triangular_solver.cc src/solver/trifocal_tensor_solver.cc)
 target_include_directories(Solver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(Solver PUBLIC Eigen3::Eigen Ceres::ceres)
 
