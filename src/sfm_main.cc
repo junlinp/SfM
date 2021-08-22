@@ -326,11 +326,11 @@ int main(int argc, char** argv) {
     auto lhs_keypoint = sfm_data.key_points.at(match_pair.first);
     auto rhs_keypoint = sfm_data.key_points.at(match_pair.second);
 
-    std::vector<Mat34> p_matrixs;
+    EigenAlignedVector<Mat34> p_matrixs;
     p_matrixs.push_back(projective_reconstruction.at(match_pair.first));
     p_matrixs.push_back(projective_reconstruction.at(match_pair.second));
     for (auto match : matches) {
-      std::vector<Eigen::Vector3d> obs;
+      EigenAlignedVector<Eigen::Vector3d> obs;
       Eigen::Vector3d lhs_ob, rhs_ob;
 
       KeyPoint lhs = lhs_keypoint[match.first];

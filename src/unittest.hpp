@@ -13,6 +13,7 @@
 #include "ransac.hpp"
 #include "solver/fundamental_solver.hpp"
 #include "solver/algebra.hpp"
+#include "solver/triangular_solver.hpp"
 
 TEST(ThreadPool, Enqueue) {
   auto functor = [](int a) { return 2 * a; };
@@ -195,7 +196,7 @@ TEST(Solver, Fundamental_Solver_With_Ransac) {
 struct Scene {
   using Point = Eigen::Vector3d;
   using Observation = Eigen::Vector2d;
-  using Mat34 = Eigen::Matrix<double, 3, 4>;
+  using Mat34 = Eigen::Matrix<double, 3, 4, Eigen::RowMajor>;
   Eigen::Matrix3d K;
 
   std::vector<Mat34, Eigen::aligned_allocator<Mat34>> Ps;
@@ -317,11 +318,30 @@ struct Scene {
     std::cout << " Error Lower bound : " << error << std::endl;
     return std::sqrt(res / data_points.size() / 4.0);
   }
+
+  template<typename Functor>
+  double TriangularError(Functor&& functor) {
+    EigenAlignedVector<Mat34> p_matrixs;
+    for (auto i : Ps) {
+      p_matrixs.push_back(i);
+    }
+
+    EigenAlignedVector<Eigen::Vector3d> obs;
+    obs.push_back(noised_observations[0][0].homogeneous());
+    obs.push_back(noised_observations[1][0].homogeneous());
+
+    Eigen::Vector4d X;
+    functor(p_matrixs, obs, X);
+
+    Point p = points[0];
+
+     return (X - p.homogeneous()).norm();
+  }
 };
 
 TEST(Fundamental, Performance) {
   double res = 0.0;
-  size_t test_case = 128;
+  size_t test_case = 1;
   for (int i = 0; i < test_case; i++) {
     Scene scene(2, 1024 * 16);
     // We need Solver
@@ -333,4 +353,11 @@ TEST(Fundamental, Performance) {
   }
   std::cout << res / test_case  << std::endl;
 }
+
+TEST(Triangular, Performance) {
+  Scene scene(2, 2);
+  std::cout << scene.TriangularError(BundleAdjustmentTriangular) << std::endl;
+  std::cout << scene.TriangularError(DLT) << std::endl;
+}
+
 #endif  // SFM_SRC_UNITTEST_HPP_
