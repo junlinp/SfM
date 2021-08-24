@@ -5,9 +5,7 @@
 
 #include "Eigen/Dense"
 
-using Mat34 = Eigen::Matrix<double, 3, 4, Eigen::RowMajor>;
-template<typename T>
-using EigenAlignedVector = std::vector<T, Eigen::aligned_allocator<T>>;
+#include "eigen_alias_types.hpp"
 
 void DLT(const EigenAlignedVector<Mat34>& p_matrixs,
 

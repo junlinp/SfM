@@ -11,8 +11,8 @@
 #include "gtest/gtest.h"
 #include "internal/thread_pool.hpp"
 #include "ransac.hpp"
-#include "solver/fundamental_solver.hpp"
 #include "solver/algebra.hpp"
+#include "solver/fundamental_solver.hpp"
 #include "solver/triangular_solver.hpp"
 #include "solver/trifocal_tensor_solver.hpp"
 
@@ -202,17 +202,20 @@ struct Scene {
 
   std::vector<Mat34, Eigen::aligned_allocator<Mat34>> Ps;
   std::vector<Point, Eigen::aligned_allocator<Point>> points;
-  using AlignedObservation = std::vector<Observation, Eigen::aligned_allocator<Observation>>;
+  using AlignedObservation =
+      std::vector<Observation, Eigen::aligned_allocator<Observation>>;
   std::map<size_t, AlignedObservation> observations;
   std::map<size_t, AlignedObservation> noised_observations;
 
   double error_sigma;
-  Scene(size_t cameras_num = 2, size_t point_num = 10, double error_sigma = 1.0) : error_sigma(error_sigma) {
+  Scene(size_t cameras_num = 2, size_t point_num = 10, double error_sigma = 1.0)
+      : error_sigma(error_sigma) {
     K << 1866.666667, 0.0, 960, 0.0, 1581.58996, 540, 0.0, 0.0, 1.0;
     std::random_device rd;
     std::default_random_engine engine(rd());
     std::uniform_real_distribution<double> hundred_distribution(-100.0, 100.0);
-    std::uniform_real_distribution<double> two_hundred_distribution(-200.0, 200.0);
+    std::uniform_real_distribution<double> two_hundred_distribution(-200.0,
+                                                                    200.0);
 
     for (int i = 0; i < point_num; i++) {
       points.emplace_back(hundred_distribution(engine),
@@ -232,66 +235,67 @@ struct Scene {
       a1 = a1 - a1.dot(a3) * a3;
       a1.normalize();
 
-      Eigen::Vector3d a2; 
+      Eigen::Vector3d a2;
       a2.setRandom();
       a2 = a2 - a2.dot(a1) * a1 - a2.dot(a3) * a3;
       a2.normalize();
       Eigen::Matrix3d R;
       R << a1.transpose(), a2.transpose(), a3.transpose();
-      if ((K*R).determinant() < 0) {
+      if ((K * R).determinant() < 0) {
         R.row(0) *= -1.0;
       }
-      //R = R.transpose();
-      //std::cout << "a1 : " << a1.transpose() << std::endl;
-      //std::cout << "a2 : " << a2.transpose() << std::endl;
-      //std::cout << "a3 : " << a3.transpose() << std::endl;
-      //std::cout << "R : " << R << std::endl;
-      //std::cout << "a1 dot C : " << a1.dot(C) << std::endl;
-      //std::cout << "a2 dot C : " << a2.dot(C) << std::endl;
-      //std::cout << "a3 dot C : " << a3.dot(C) << std::endl;
-      //std::cout << a1.dot(a3) << std::endl;
-      //std::cout << "R * C : " << R * C << std::endl;
-      
-      //std::cout << R * R.transpose() << std::endl;
+      // R = R.transpose();
+      // std::cout << "a1 : " << a1.transpose() << std::endl;
+      // std::cout << "a2 : " << a2.transpose() << std::endl;
+      // std::cout << "a3 : " << a3.transpose() << std::endl;
+      // std::cout << "R : " << R << std::endl;
+      // std::cout << "a1 dot C : " << a1.dot(C) << std::endl;
+      // std::cout << "a2 dot C : " << a2.dot(C) << std::endl;
+      // std::cout << "a3 dot C : " << a3.dot(C) << std::endl;
+      // std::cout << a1.dot(a3) << std::endl;
+      // std::cout << "R * C : " << R * C << std::endl;
+
+      // std::cout << R * R.transpose() << std::endl;
 
       // P = [M | t]
       // v = det(M) * 3rd_row_of(M)
-      // the vector v is directed start with the center of camera along the z-axis
-      // if the camera stand on C and point to the origin.
-      // so v = lambda * C where lambda < 0
-      // this is the way to compute Rotation
+      // the vector v is directed start with the center of camera along the
+      // z-axis if the camera stand on C and point to the origin. so v = lambda
+      // * C where lambda < 0 this is the way to compute Rotation
 
       Eigen::Matrix<double, 3, 4> P;
-      P << R, -R*C;
-      //std::cout << "P : " << P << std::endl;
+      P << R, -R * C;
+      // std::cout << "P : " << P << std::endl;
       P = K * P;
-    
-      //std::cout << (P * (-1.1 * C).homogeneous()).hnormalized() << std::endl;
+
+      // std::cout << (P * (-1.1 * C).homogeneous()).hnormalized() << std::endl;
       Ps.push_back(P);
     }
 
     int count = 0;
     std::normal_distribution<double> normal_distribution(0.0, error_sigma);
-      for (auto& P : Ps) {
-        for (Point& p : points) {
-          Eigen::Vector3d ob = P * p.homogeneous();
-          Eigen::Vector2d ob_h = ob.hnormalized();
-          observations[count].emplace_back(ob_h);
-          // std::cout << ob.hnormalized() << std::endl;
-          // add noised
-          double noised_x = normal_distribution(engine),
-                 noised_y = normal_distribution(engine);
-          Eigen::Vector2d n(ob_h.x() + noised_x, ob_h.y() + noised_y);
-          noised_observations[count].emplace_back(n);
-        }
-        count++;
+    for (auto& P : Ps) {
+      for (Point& p : points) {
+        Eigen::Vector3d ob = P * p.homogeneous();
+        Eigen::Vector2d ob_h = ob.hnormalized();
+        observations[count].emplace_back(ob_h);
+        // std::cout << ob.hnormalized() << std::endl;
+        // add noised
+        double noised_x = normal_distribution(engine),
+               noised_y = normal_distribution(engine);
+        Eigen::Vector2d n(ob_h.x() + noised_x, ob_h.y() + noised_y);
+        noised_observations[count].emplace_back(n);
+      }
+      count++;
     }
   }
 
-  template<typename FundamentalSolver>
+  template <typename FundamentalSolver>
   void FundamentalMatrixCompute(Eigen::Matrix3d& F) {
     using T = std::pair<Observation, Observation>;
-    std::vector<std::pair<Observation, Observation>, Eigen::aligned_allocator<T> > data_points;
+    std::vector<std::pair<Observation, Observation>,
+                Eigen::aligned_allocator<T>>
+        data_points;
     data_points.resize(noised_observations[0].size());
     for (int i = 0; i < data_points.size(); i++) {
       data_points[i].first = noised_observations[0][i];
@@ -301,7 +305,7 @@ struct Scene {
     solver.Fit(data_points, F);
   }
 
-  template<typename ErrorEstimator>
+  template <typename ErrorEstimator>
   double FundamentalResiduals(const Eigen::Matrix3d& F) {
     double res = 0.0;
     std::vector<std::pair<Observation, Observation>> data_points;
@@ -320,43 +324,57 @@ struct Scene {
     return std::sqrt(res / data_points.size() / 4.0);
   }
 
-  template<typename Functor>
+  template <typename Functor>
   double TriangularError(Functor&& functor) {
     EigenAlignedVector<Mat34> p_matrixs;
     for (auto i : Ps) {
       p_matrixs.push_back(i);
     }
+    double error = 0.0;
+    for (int j = 0; j < observations[0].size(); j++) {
+      EigenAlignedVector<Eigen::Vector3d> obs;
+      for (int i = 0; i < Ps.size(); i++) {
+        obs.push_back(observations[i][j].homogeneous());
+      }
 
-    EigenAlignedVector<Eigen::Vector3d> obs;
-    obs.push_back(noised_observations[0][0].homogeneous());
-    obs.push_back(noised_observations[1][0].homogeneous());
+      Eigen::Vector4d X;
+      functor(p_matrixs, obs, X);
+      Point p = points[j];
+      X = X / X(3);
+      // std::cout << "X : " << X << " With : " << p << std::endl;
+      // std::cout << "P * X : " << p_matrixs[0] * X << std::endl;
+      // std::cout << "P * p : " << p_matrixs[0] * p.homogeneous() << std::endl;
+      error += (X - p.homogeneous()).norm();
+    }
 
-    Eigen::Vector4d X;
-    functor(p_matrixs, obs, X);
-
-    Point p = points[0];
-
-     return (X - p.homogeneous()).norm();
+    return error / noised_observations[0].size();
   }
-
 
   double TrifocalError() {
     std::vector<TriPair> data_points;
-    for(int i = 0; i < 7; i++) {
-      TriPair t = {observations[0][i], observations[1][i],
-                  observations[2][i]};
+    for (int i = 0; i < 7; i++) {
+      TriPair t = {observations[0][i], observations[1][i], observations[2][i]};
       data_points.push_back(t);
     }
 
     LinearSolver solver;
     Trifocal model;
     solver.Fit(data_points, model);
-    //std::cout << model << std::endl;
-    
+
+    Trifocal model2;
+    BundleRefineSolver bundle_solver;
+    bundle_solver.Fit(data_points, model2);
+
+    // std::cout << model << std::endl;
+
     double error = 0.0;
+    double geometry_error = 0.0;
     for (TriPair data_point : data_points) {
       error += Error(data_point, model);
+      geometry_error += GeometryError(data_point, model2);
     }
+    std::cout << "Geometry Error : " << geometry_error / data_points.size()
+              << std::endl;
     return error / data_points.size();
   }
 };
@@ -370,14 +388,26 @@ TEST(Fundamental, Performance) {
     // We need a Error Estimator
     Eigen::Matrix3d F;
     scene.FundamentalMatrixCompute<EightPointFundamentalSolver>(F);
-    //std::cout << F << std::endl;
-    res +=  scene.FundamentalResiduals<SampsonError>(F);
+    // std::cout << F << std::endl;
+    res += scene.FundamentalResiduals<SampsonError>(F);
   }
-  std::cout << res / test_case  << std::endl;
+  std::cout << res / test_case << std::endl;
 }
 
-TEST(Triangular, Performance) {
+TEST(Triangular, Performance_Two_Camera) {
   Scene scene(2, 2);
+  std::cout << scene.TriangularError(BundleAdjustmentTriangular) << std::endl;
+  std::cout << scene.TriangularError(DLT) << std::endl;
+}
+
+TEST(Triangular, Performance_Three_Camera) {
+  Scene scene(3, 2);
+  std::cout << scene.TriangularError(BundleAdjustmentTriangular) << std::endl;
+  std::cout << scene.TriangularError(DLT) << std::endl;
+}
+
+TEST(Triangular, Performance_Four_Camera) {
+  Scene scene(4, 2);
   std::cout << scene.TriangularError(BundleAdjustmentTriangular) << std::endl;
   std::cout << scene.TriangularError(DLT) << std::endl;
 }

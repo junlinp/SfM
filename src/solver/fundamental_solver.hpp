@@ -69,11 +69,9 @@ class RansacEightPointFundamentalSolverInterface : public FundamentalSolverInter
 
   bool Fit(const std::vector<DataPointType, Eigen::aligned_allocator<DataPointType>>& data_points,
                   ModelType& models) {
-    //EightPointFundamentalSolverImpl::Fit(data_points, models);
     std::vector<size_t> placeholder;
     return Ransac<EightPointFundamentalSolverImpl, SampsonError>::Inference(
         data_points, placeholder, &models);
-    return false;
   }
 };
 

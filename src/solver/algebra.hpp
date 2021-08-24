@@ -9,7 +9,13 @@ Eigen::VectorXd NullSpace(const Derived& m) {
 
   Eigen::JacobiSVD svd(m, Eigen::ComputeFullV);
 
-  return svd.matrixV().row(col - 1);
+  return svd.matrixV().col(col - 1);
+}
+
+template<typename T>
+Eigen::VectorXd NullSpace(const Eigen::Transpose<T>& m) {
+    T temp = m;
+    return NullSpace<T>(temp);
 }
 
 //Eigen::Vector3d NullSpace(const Eigen::Matrix3d& m) {
