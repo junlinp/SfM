@@ -113,8 +113,8 @@ struct TripleIndex {
 };
 void ProjectiveReconstruction(
     const std::map<Pair, Eigen::Matrix3d>& fundamental_matrix,
-    const std::map<Piar, Matches>& filter_matches,
-    const std::map<IndexT, KeyPoint>& keypoint,
+    const std::map<Pair, Matches>& filter_matches,
+    const std::map<IndexT, std::vector<KeyPoint>>& keypoint,
     std::map<IndexT, Mat34>& projective_reconstruction) {
   using Fundamental_Matrix_Type =
       typename std::map<Pair, Eigen::Matrix3d>::value_type;
@@ -128,7 +128,7 @@ void ProjectiveReconstruction(
   // A. find all the triple using the fundamental_matrix
   std::set<IndexT> index_set;
   auto all_index = fundamental_matrix |
-                   Transform([](auto& item) { return iter.first }) | ToVector();
+                   Transform([](const auto& item) { return item.first; }) | ToVector();
   for (auto& item : all_index) {
     index_set.insert(item.first);
     index_set.insert(item.second);
@@ -145,7 +145,7 @@ void ProjectiveReconstruction(
             Pair two = {std::min(J, K), std::max(J, K)};
 
             if (fundamental_matrix.find(one) != fundamental_matrix.end() &&
-                fundamental_matrix.find(tow) != fundamental_matrix.end()) {
+                fundamental_matrix.find(two) != fundamental_matrix.end()) {
               TripleIndex triple = {I, J, K};
               triple_pair.push_back(triple);
             }
@@ -162,10 +162,10 @@ void ProjectiveReconstruction(
   used_index.insert(initial.J_);
   used_index.insert(initial.K_);
 
-  auto TrackBuilder = [](std::vector<KeyPoint>& I_keypoint,
-                         std::vector<KeyPoint>& J_keypoint,
-                         std::vector<KeyPoint>& K_keypoint,
-                         Matches& I_to_J_matches, Matches& J_to_K_matches) {
+  auto TrackBuilder = [](const std::vector<KeyPoint>& I_keypoint,
+                         const std::vector<KeyPoint>& J_keypoint,
+                         const std::vector<KeyPoint>& K_keypoint,
+                         const Matches& I_to_J_matches,const Matches& J_to_K_matches) {
     std::vector<TriPair> res;
     std::map<IndexT, IndexT> J_to_K_matches_map;
     for (Matche match : J_to_K_matches) {
@@ -188,14 +188,14 @@ void ProjectiveReconstruction(
   };
 
   {
-    std::vector<KeyPoint> I_keypoint = keypoint[initial.I_];
-    std::vector<KeyPoint> J_keypoint = keypoint[initial.J_];
-    std::vector<KeyPoint> K_keypoint = keypoint[initial.K_];
+    const std::vector<KeyPoint>& I_keypoint = keypoint.at(initial.I_);
+    const std::vector<KeyPoint>& J_keypoint = keypoint.at(initial.J_);
+    const std::vector<KeyPoint>& K_keypoint = keypoint.at(initial.K_);
 
     std::vector<TriPair> data_points =
         TrackBuilder(I_keypoint, J_keypoint, K_keypoint,
-                     filter_matches[{initial.I_, initial.J_}],
-                     filter_matches[{initial.J_, initial.K_}]);
+                     filter_matches.at({initial.I_, initial.J_}),
+                     filter_matches.at({initial.J_, initial.K_}));
     Trifocal trifocal;
     BundleRefineSolver solver;
     solver.Fit(data_points, trifocal);
@@ -204,8 +204,23 @@ void ProjectiveReconstruction(
                          projective_reconstruction[initial.K_]);
   }
 
-  auto ContanerExist(auto container, auto item) {
+  auto ContanerExist = [](auto container, auto item) {
     return container.find(item) != container.end();
+  };
+
+  auto TripleValid = [ContanerExist](const TripleIndex& triple_index, const std::set<IndexT>& used_index) {
+    int count = 0;
+    if (ContanerExist(used_index, triple_index.I_)) {
+      count++;
+    }
+
+    if (ContanerExist(used_index, triple_index.J_)) {
+      count++;
+    }
+    if (ContanerExist(used_index, triple_index.K_)) {
+      count++;
+    }
+    return count == 2;
   };
   // remove the initial pair
   triple_pair.erase(triple_pair.begin());
@@ -231,19 +246,22 @@ void ProjectiveReconstruction(
           second = triple_index.J_;
           need_to_predict = triple_index.K_;
         }
-        std::vector<KeyPoint> first_keypoint = keypoint[first];
-        std::vector<KeyPoint> second_keypoint = keypoint[second];
-        std::vector<KeyPoint> need_to_predict_keypoint = keypoint[need_to_predict];
+        const std::vector<KeyPoint>& first_keypoint = keypoint.at(first);
+        const std::vector<KeyPoint>& second_keypoint = keypoint.at(second);
+        const std::vector<KeyPoint>& need_to_predict_keypoint = keypoint.at(need_to_predict);
         std::vector<TriPair> data_point = TrackBuilder(
             first_keypoint, second_keypoint, need_to_predict_keypoint,
-            filter_matches[{first, second}],
-            filter_matches[{second, need_to_predict}]);
+            filter_matches.at({first, second}),
+            filter_matches.at({second, need_to_predict}));
 
         Trifocal trifocal;
         BundleRefineSolver solver;
         solver.Fit(data_point, trifocal);
 
-        BundleRecovertyMatrix(data_point, trifocal, prejective_matrix[first], prejective_construction[second], p[need_to_predict]);
+        BundleRecovertyCameraMatrix(data_point, trifocal,
+                                    projective_reconstruction[first],
+                                    projective_reconstruction[second],
+                                    projective_reconstruction[need_to_predict]);
 
         // append
         found = true;

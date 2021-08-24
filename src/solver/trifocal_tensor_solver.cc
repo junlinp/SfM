@@ -21,7 +21,7 @@ double Error(TriPair data_point, Trifocal model) {
       x(0) * model.lhs + x(1) * model.middle + x(2) * model.rhs;
 
   Eigen::Matrix3d result = lhs * tri_tensor * rhs;
-  //std::cout << "tri_tensor : " << tri_tensor << std::endl;
+  // std::cout << "tri_tensor : " << tri_tensor << std::endl;
   return std::sqrt((result.array().square()).sum());
 }
 
@@ -68,7 +68,7 @@ double GeometryError(const TriPair data_point, Trifocal& model) {
   return cost;
 }
 
-void RecoveryCameraMatrix(Trifocal& trifocal, Mat34& P1, Mat34& P2, Mat34& P3) {
+void RecoveryCameraMatrix(const Trifocal& trifocal, Mat34& P1, Mat34& P2, Mat34& P3) {
   P1 << 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0;
 
   // T = [T_1, T_2, T_3]
@@ -118,7 +118,6 @@ void RecoveryCameraMatrix(Trifocal& trifocal, Mat34& P1, Mat34& P2, Mat34& P3) {
       helper * trifocal.middle.transpose() * epipolar_,
       helper * trifocal.rhs.transpose() * epipolar_, epipolar_2;
 
-
   Eigen::Vector3d b4 = P3.col(3);
   Eigen::Vector3d b3 = P3.col(2);
   Eigen::Vector3d b2 = P3.col(1);
@@ -129,7 +128,8 @@ void RecoveryCameraMatrix(Trifocal& trifocal, Mat34& P1, Mat34& P2, Mat34& P3) {
   Eigen::Vector3d a2 = P2.col(1);
   Eigen::Vector3d a1 = P2.col(0);
 
-  Eigen::Matrix3d lhs = a1 * b4.transpose() - a4 * b1.transpose();;
+  Eigen::Matrix3d lhs = a1 * b4.transpose() - a4 * b1.transpose();
+  ;
   Eigen::Matrix3d middle = a2 * b4.transpose() - a4 * b2.transpose();
   Eigen::Matrix3d rhs = a3 * b4.transpose() - a4 * b3.transpose();
 
@@ -138,10 +138,54 @@ void RecoveryCameraMatrix(Trifocal& trifocal, Mat34& P1, Mat34& P2, Mat34& P3) {
   std::cout << trifocal.middle - middle << std::endl << std::endl;
   std::cout << trifocal.rhs - rhs << std::endl << std::endl;
   std::cout << "Recovery end" << std::endl;
-
-
 }
 
+void BundleRecovertyCameraMatrix(const std::vector<TriPair>& data_points,
+                                 const Trifocal& trifocal, const Mat34& P1,
+                                 const Mat34& P2, Mat34& P3) {
+  Mat34 P1_, P2_, P3_;
+
+  RecoveryCameraMatrix(trifocal, P1_, P2_, P3_);
+  Eigen::Matrix4d H;
+  H << P1, 0, 0, 0, 1;
+  P3 = P3_ * H.inverse();
+
+  std::vector<std::vector<double>> points(data_points.size(), std::vector<double>(3, 0));
+  ceres::Problem probelm;
+  for (int i = 0; i < data_points.size(); i++) {
+      const TriPair& data_point = data_points[i]; 
+      Eigen::Vector4d X;
+      DLT({P1, P2, P3}, {data_point.lhs, data_point.middle, data_point.rhs}, X);
+      points[i][0] = X(0) / X(3);
+      points[i][1] = X(1) / X(3);
+      points[i][2] = X(2) / X(3);
+
+      ceres::CostFunction* cost_function_p1 = new ceres::AutoDiffCostFunction<ConstCameraMatrixCostFunctor, 2, 3>(
+          new ConstCameraMatrixCostFunctor(P1, data_point.lhs)
+      );
+      probelm.AddResidualBlock(cost_function_p1, nullptr, points[i].data());
+
+      ceres::CostFunction* cost_function_p2 = new ceres::AutoDiffCostFunction<ConstCameraMatrixCostFunctor, 2, 3>(
+          new ConstCameraMatrixCostFunctor(P2, data_point.middle)
+      );
+      probelm.AddResidualBlock(cost_function_p2, nullptr, points[i].data());
+
+      ceres::CostFunction* cost_function_p3 = new ceres::AutoDiffCostFunction<CostFunctor, 2, 12, 3>(
+          new CostFunctor(data_point.rhs)
+      );
+
+      probelm.AddResidualBlock(cost_function_p3, nullptr, P3.data(), points[i].data());
+  }
+
+  ceres::Solver::Options options;
+  options.max_num_iterations = 500;
+  ceres::Solver::Summary summary;
+  ceres::Solve(options, &probelm, &summary);
+
+  if (!summary.IsSolutionUsable()) {
+      std::printf("Solution is unavailable\n");
+  }
+}
 namespace {
 struct EpsilonTensor {
   static double Get(int i, int j, int k) {
@@ -165,10 +209,10 @@ struct EpsilonTensor {
 }  // namespace
 void LinearSolver::Fit(const std::vector<DataPointType>& data_points,
                        ModelType& model) {
-  //assert(data_points.size() == 7);
+  // assert(data_points.size() == 7);
   size_t n = data_points.size();
 
-  //Eigen::Matrix<double, 4 * n, 27> A;
+  // Eigen::Matrix<double, 4 * n, 27> A;
   Eigen::MatrixXd A(4 * n, 27);
   A.setZero();
   int index = 0;
@@ -222,7 +266,6 @@ void BundleRefineSolver::Fit(const std::vector<DataPointType>& data_points,
     DLT(p_matrixs, obs, X);
     points.push_back({X(0) / X(3), X(1) / X(3), X(2) / X(3)});
 
-
     ceres::CostFunction* cost_function_p1 =
         new ceres::AutoDiffCostFunction<ConstCameraMatrixCostFunctor, 2, 3>(
             new ConstCameraMatrixCostFunctor(P1, data_point.lhs));
@@ -231,11 +274,13 @@ void BundleRefineSolver::Fit(const std::vector<DataPointType>& data_points,
     ceres::CostFunction* cost_function_p2 =
         new ceres::AutoDiffCostFunction<CostFunctor, 2, 12, 3>(
             new CostFunctor(data_point.middle));
-    problem.AddResidualBlock(cost_function_p2, nullptr, P2.data(), points.back().data());
+    problem.AddResidualBlock(cost_function_p2, nullptr, P2.data(),
+                             points.back().data());
     ceres::CostFunction* cost_function_p3 =
         new ceres::AutoDiffCostFunction<CostFunctor, 2, 12, 3>(
             new CostFunctor(data_point.rhs));
-    problem.AddResidualBlock(cost_function_p3, nullptr, P3.data(), points.back().data());
+    problem.AddResidualBlock(cost_function_p3, nullptr, P3.data(),
+                             points.back().data());
   }
 
   ceres::Solver::Options options;
@@ -253,7 +298,8 @@ void BundleRefineSolver::Fit(const std::vector<DataPointType>& data_points,
   Eigen::Vector3d a2 = P2.col(1);
   Eigen::Vector3d a1 = P2.col(0);
 
-  model.lhs = a1 * b4.transpose() - a4 * b1.transpose();;
+  model.lhs = a1 * b4.transpose() - a4 * b1.transpose();
+  ;
   model.middle = P2.col(1) * b4.transpose() - a4 * P3.col(1).transpose();
   model.rhs = P2.col(2) * b4.transpose() - a4 * P3.col(2).transpose();
 }

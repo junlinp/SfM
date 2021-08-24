@@ -31,8 +31,12 @@ double Error(TriPair data_point, Trifocal model);
 
 double GeometryError(const TriPair data_point, Trifocal& model);
 
-void RecoveryCameraMatrix(Trifocal& trifocal, Mat34& P1, Mat34& P2, Mat34& P3);
+void RecoveryCameraMatrix(const Trifocal& trifocal, Mat34& P1, Mat34& P2,
+                          Mat34& P3);
 
+void BundleRecovertyCameraMatrix(const std::vector<TriPair>& data_points,
+                                 const Trifocal& trifocal, const Mat34& P1,
+                                 const Mat34& P2, Mat34& P3);
 class LinearSolver {
  public:
   using DataPointType = TriPair;
