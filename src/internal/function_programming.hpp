@@ -47,7 +47,11 @@ class TransformContainer {
   using InputType = typename std::decay_t<InputContainer>::value_type;
   using OutputType = std::result_of_t<Functor(InputType)>;
   using value_type = OutputType;
-  using iterator = TransformContainerIterator<typename std::decay_t<InputContainer>::iterator,
+  using input_iterator_type = typename std::conditional<
+      std::is_const_v<typename std::remove_reference<InputContainer>::type>,
+      typename std::decay_t<InputContainer>::const_iterator,
+      typename std::decay_t<InputContainer>::iterator>::type;
+  using iterator = TransformContainerIterator<input_iterator_type,
                                       Functor, OutputType>;
 
   iterator begin() { return iterator(container_.begin(), functor_); };
