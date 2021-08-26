@@ -15,6 +15,7 @@
 #include "solver/fundamental_solver.hpp"
 #include "solver/triangular_solver.hpp"
 #include "solver/trifocal_tensor_solver.hpp"
+#include "solver/self_calibration_solver.hpp"
 
 TEST(ThreadPool, Enqueue) {
   auto functor = [](int a) { return 2 * a; };
@@ -377,6 +378,34 @@ struct Scene {
               << std::endl;
     return error / data_points.size();
   }
+
+  void SelfCalibration() {
+    Eigen::Matrix4d H;
+    H.setRandom();
+    std::vector<Mat34> P;
+    std::copy(Ps.begin(), Ps.end(), std::back_inserter(P));
+    for(Mat34& iter : P) {
+      iter = iter * H;
+    }
+    Eigen::Matrix4d Q = IAC(P,1920, 1080);
+    std::cout << "Q : " << Q << std::endl;
+
+    Eigen::Matrix3d dual_omega = P[0] * Q * P[0].transpose();
+    std::cout << "dual_omega : " << dual_omega << std::endl;
+    Eigen::Matrix3d K = RecoveryK(dual_omega, 1920, 1080);
+    std::cout << K << std::endl;
+    // cx = 1920 / 2 = 960
+    // cy = 1080 / 2 = 540
+    // dx = 36.0 / 1920 = 0.01875
+    // dy = 23.9 / 1080 = 0.02212963
+    // fx = f / dx = 1866.6667
+    // fy = f / dy = 1581.58996
+    Eigen::Matrix3d true_K;
+    true_K << 1866.6667, 0.0, 960,
+                0.0,  1581.58996, 540,
+                0.0, 0.0, 1.0;
+    std::cout << "K * K^T : " << true_K * true_K.transpose() << std::endl;
+  }
 };
 
 TEST(Fundamental, Performance) {
@@ -416,5 +445,11 @@ TEST(Trifocal, Test) {
   Scene scene(3, 7);
 
   std::cout << scene.TrifocalError() << std::endl;
+}
+
+TEST(Self_Calibration, Correct) {
+  Scene scene(10, 7);
+
+  scene.SelfCalibration();
 }
 #endif  // SFM_SRC_UNITTEST_HPP_

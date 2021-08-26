@@ -55,8 +55,8 @@ void DLT(const EigenAlignedVector<Mat34>& p_matrixs,
   //std::cout << coefficent * X << std::endl;
   // std::cout << "X : " << X << std::endl;
   X = X / X(3);
-  std::cout << "DLT Formula Condition Number : " << singular_value(0) / singular_value(3) << std::endl;
-  std::cout << "DLT Geometry Error : " << TriangularGeometryError(p_matrixs, obs, X) << std::endl;
+  //std::cout << "DLT Formula Condition Number : " << singular_value(0) / singular_value(3) << std::endl;
+  //std::cout << "DLT Geometry Error : " << TriangularGeometryError(p_matrixs, obs, X) << std::endl;
 }
 void BundleAdjustmentTriangular(const EigenAlignedVector<Mat34>& p_matrixs, const EigenAlignedVector<Eigen::Vector3d>& obs, Eigen::Vector4d& X) {
     assert(p_matrixs.size() == obs.size());

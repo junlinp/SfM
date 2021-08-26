@@ -147,7 +147,12 @@ void BundleRecovertyCameraMatrix(const std::vector<TriPair>& data_points,
 
   RecoveryCameraMatrix(trifocal, P1_, P2_, P3_);
   Eigen::Matrix4d H;
-  H << P1, 0, 0, 0, 1;
+  Eigen::Vector4d null_vector = NullSpace(P1);
+  H << P1, null_vector.transpose();
+  // TODO (junlinp@qq.com):
+  // checkout whether P2_ = P2 * H
+  double e = (P2 * H - P2_).array().square().sum();
+  std::cout << "P2 * H == P2_ : " << e << std::endl;
   P3 = P3_ * H.inverse();
 
   std::vector<std::vector<double>> points(data_points.size(), std::vector<double>(3, 0));

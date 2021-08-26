@@ -6,6 +6,7 @@
 
 #include "descriptor.hpp"
 #include "keypoint.hpp"
+#include "Eigen/Dense"
 
 using IndexT = int64_t;
 
@@ -16,9 +17,13 @@ using Pair = std::pair<IndexT, IndexT>;
 using Matche = std::pair<size_t, size_t>;
 using Matches = std::vector<Matche>;
 
+using Observation = Eigen::Vector2d;
+
 struct SparsePoint {
     double x, y, z;
     SparsePoint(double x = 0.0, double y = 0.0, double z = 0.0) : x(x), y(y), z(z) {}
+    // <ImageID,  obs>
+    std::map<IndexT,  Observation> obs;
 };
 
 struct SfMData {

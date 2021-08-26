@@ -17,14 +17,14 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 
 add_library(SfMData src/sfm_data_io.cc src/sfm_data_io.hpp src/sfm_data.hpp)
-target_link_libraries(SfMData PRIVATE cereal::cereal)
+target_link_libraries(SfMData PRIVATE cereal::cereal PUBLIC Eigen3::Eigen)
 
 add_library(FeatureExtractor 
 src/feature_extractor/vlfeat_feature_extractor.cc 
 src/feature_extractor/opencv_orb_extractor.cc)
 target_link_libraries(FeatureExtractor PUBLIC SfMData PRIVATE vlfeat ${OpenCV_LIBS})
 
-add_library(Solver src/solver/fundamental_solver.cc src/solver/fundamental_solver.hpp src/solver/triangular_solver.cc src/solver/trifocal_tensor_solver.cc)
+add_library(Solver src/solver/fundamental_solver.cc src/solver/fundamental_solver.hpp src/solver/triangular_solver.cc src/solver/trifocal_tensor_solver.cc src/solver/self_calibration_solver.cc)
 target_include_directories(Solver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(Solver PUBLIC Eigen3::Eigen Ceres::ceres)
 
@@ -41,7 +41,7 @@ target_include_directories(FeatureMatch PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(FeatureMatch PRIVATE SfMData)
 
 add_executable(FeatureMatch_main src/feature_match_main.cc)
-target_link_libraries(FeatureMatch_main PRIVATE FeatureMatch)
+target_link_libraries(FeatureMatch_main PRIVATE FeatureMatch SfMData)
 
 add_executable(SFM_main src/sfm_main.cc)
 target_link_libraries(SFM_main PRIVATE SfMData Eigen3::Eigen Solver)
