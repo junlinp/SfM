@@ -1,5 +1,6 @@
 #include <fstream>
 #include <iostream>
+#include <queue>
 
 #include "Eigen/Dense"
 #include "internal/function_programming.hpp"
@@ -8,11 +9,9 @@
 #include "sfm_data_io.hpp"
 #include "solver/algebra.hpp"
 #include "solver/fundamental_solver.hpp"
+#include "solver/self_calibration_solver.hpp"
 #include "solver/triangular_solver.hpp"
 #include "solver/trifocal_tensor_solver.hpp"
-#include "solver/self_calibration_solver.hpp"
-
-#include <queue>
 
 bool ComputeFundamentalMatrix(const std::vector<KeyPoint>& lhs_keypoint,
                               const std::vector<KeyPoint>& rhs_keypoint,
@@ -69,7 +68,6 @@ bool ComputeProjectiveReconstruction(const Eigen::Matrix3d& F, Mat34& P1,
   return true;
 }
 
-
 bool ExistOneKey(const std::set<IndexT>& set, std::pair<IndexT, IndexT> item) {
   int lhs_exist = (set.find(item.first) != set.end());
   int rhs_exist = (set.find(item.second) != set.end());
@@ -115,6 +113,55 @@ struct TripleIndex {
     K_ = K;
   }
 };
+template<class T>
+auto ReverseMatches(const std::vector<T>& input) {
+  std::vector<T> output;
+  output.reserve(input.size());
+  for(T item : input) {
+    std::swap(item.first, item.second);
+    output.push_back(item);
+  }
+  return output;
+}
+
+std::vector<TriPair> TripleTrackBuilder(const std::vector<KeyPoint>& I_keypoint,
+                                  const std::vector<KeyPoint>& J_keypoint,
+                                  const std::vector<KeyPoint>& K_keypoint,
+                                  const Matches& I_to_J_matches,
+                                  const Matches& J_to_K_matches,
+                                  const Matches& I_to_K_matches) {
+  std::vector<TriPair> res;
+
+  std::map<IndexT, IndexT> J_to_K_matches_map;
+  std::map<IndexT, IndexT> K_to_I_matches_map;
+  // I -> J -> K -> I
+  for (Matche match : J_to_K_matches) {
+    J_to_K_matches_map[match.first] = match.second;
+  }
+
+  for (Matche match : I_to_K_matches) {
+    K_to_I_matches_map[match.second] = match.first;
+  }
+
+  for (Matche match : I_to_J_matches) {
+
+    if (J_to_K_matches_map.find(match.second) != J_to_K_matches_map.end()) {
+      IndexT k = J_to_K_matches_map[match.second];
+      if (K_to_I_matches_map.find(k) != K_to_I_matches_map.end() &&
+          K_to_I_matches_map[k] == match.first) {
+        Eigen::Vector2d I_obs(I_keypoint[match.first].x,
+                              I_keypoint[match.first].y);
+        Eigen::Vector2d J_obs(J_keypoint[match.second].x,
+                              J_keypoint[match.second].y);
+        Eigen::Vector2d K_obs(K_keypoint[k].x, K_keypoint[k].y);
+        TriPair p(I_obs, J_obs, K_obs);
+        res.push_back(p);
+      }
+    }
+  }
+  return res;
+};
+
 void ProjectiveReconstruction(
     const std::map<Pair, Eigen::Matrix3d>& fundamental_matrix,
     const std::map<Pair, Matches>& filter_matches,
@@ -122,10 +169,10 @@ void ProjectiveReconstruction(
     std::map<IndexT, Mat34>& projective_reconstruction,
     std::vector<SparsePoint>& sparse_point_vec
 
-    ) {
+) {
   using Fundamental_Matrix_Type =
       typename std::map<Pair, Eigen::Matrix3d>::value_type;
-   
+
   // A. find all the triple using the fundamental_matrix.
   // B. find a best triple to initialize.
   // C. Init three camera using trifocal.
@@ -136,7 +183,8 @@ void ProjectiveReconstruction(
   std::printf("A. find all the triple using the fundamental matrix\n");
   std::set<IndexT> index_set;
   auto all_index = fundamental_matrix |
-                   Transform([](const auto& item) { return item.first; }) | ToVector();
+                   Transform([](const auto& item) { return item.first; }) |
+                   ToVector();
   for (auto& item : all_index) {
     index_set.insert(item.first);
     index_set.insert(item.second);
@@ -162,7 +210,30 @@ void ProjectiveReconstruction(
       }
     }
   }
+  for(TripleIndex lhs : triple_pair) {
+    auto lhs_data_point = TripleTrackBuilder(
+        keypoint.at(lhs.I_), keypoint.at(lhs.J_), keypoint.at(lhs.K_),
+        filter_matches.at({lhs.I_, lhs.J_}),
+        filter_matches.at({lhs.J_, lhs.K_}),
+        filter_matches.at({lhs.I_, lhs.K_}));
+    std::cout << "Triple Feature : " << lhs_data_point.size() << std::endl;
+  }
 
+  std::sort(triple_pair.begin(), triple_pair.end(),
+            [keypoint, filter_matches](const TripleIndex& lhs,
+                                       const TripleIndex& rhs) {
+              auto lhs_data_point = TripleTrackBuilder(
+                  keypoint.at(lhs.I_), keypoint.at(lhs.J_), keypoint.at(lhs.K_),
+                  filter_matches.at({lhs.I_, lhs.J_}),
+                  filter_matches.at({lhs.J_, lhs.K_}),
+                  filter_matches.at({lhs.I_, lhs.K_}));
+              auto rhs_data_point = TripleTrackBuilder(
+                  keypoint.at(rhs.I_), keypoint.at(rhs.J_), keypoint.at(rhs.K_),
+                  filter_matches.at({rhs.I_, rhs.J_}),
+                  filter_matches.at({rhs.J_, rhs.K_}),
+                  filter_matches.at({rhs.I_, rhs.K_}));
+              return lhs_data_point.size() > rhs_data_point.size();
+            });
   // B.find a best triple to initialize.
   std::printf("B. find a best triple to initialize\n");
   std::set<IndexT> used_index;
@@ -171,50 +242,20 @@ void ProjectiveReconstruction(
   used_index.insert(initial.J_);
   used_index.insert(initial.K_);
 
-  auto TrackBuilder = [](const std::vector<KeyPoint>& I_keypoint,
-                         const std::vector<KeyPoint>& J_keypoint,
-                         const std::vector<KeyPoint>& K_keypoint,
-                         const Matches& I_to_J_matches,const Matches& J_to_K_matches, const Matches& I_to_K_matches) {
-    std::vector<TriPair> res;
-    std::map<IndexT, IndexT> J_to_K_matches_map;
-    std::map<IndexT, IndexT> K_to_I_matches_map;
-    for (Matche match : J_to_K_matches) {
-      J_to_K_matches_map[match.first] = match.second;
-    }
-
-    for (Matche match : I_to_K_matches) {
-      K_to_I_matches_map[match.second] = match.first;
-    }
-
-
-    for (Matche match : I_to_J_matches) {
-      if (J_to_K_matches_map.find(match.second) != J_to_K_matches_map.end() ) {
-        IndexT k = J_to_K_matches_map[match.second];
-        if (K_to_I_matches_map.find(k) != K_to_I_matches_map.end() && K_to_I_matches_map[k] == match.first) {
-          Eigen::Vector2d I_obs(I_keypoint[match.first].x,
-                                I_keypoint[match.first].y);
-          Eigen::Vector2d J_obs(J_keypoint[match.second].x,
-                                J_keypoint[match.second].y);
-          Eigen::Vector2d K_obs(K_keypoint[k].x, K_keypoint[k].y);
-          TriPair p(I_obs, J_obs, K_obs);
-          res.push_back(p);
-        }
-     }
-    }
-    return res;
-  };
-
   {
     const std::vector<KeyPoint>& I_keypoint = keypoint.at(initial.I_);
     const std::vector<KeyPoint>& J_keypoint = keypoint.at(initial.J_);
     const std::vector<KeyPoint>& K_keypoint = keypoint.at(initial.K_);
 
     std::vector<TriPair> data_points =
-        TrackBuilder(I_keypoint, J_keypoint, K_keypoint,
+        TripleTrackBuilder(I_keypoint, J_keypoint, K_keypoint,
                      filter_matches.at({initial.I_, initial.J_}),
                      filter_matches.at({initial.J_, initial.K_}),
-                     filter_matches.at({initial.I_, initial.K_})
-                     );
+                     filter_matches.at({initial.I_, initial.K_}));
+    if (data_points.size() < 7) {
+      std::printf("Initial Pair fails\n");
+      return;
+    }
     Trifocal trifocal;
     BundleRefineSolver solver;
     solver.Fit(data_points, trifocal);
@@ -224,7 +265,10 @@ void ProjectiveReconstruction(
     for (TriPair item : data_points) {
       // DLT
       Eigen::Vector4d X;
-      DLT({projective_reconstruction[initial.I_], projective_reconstruction[initial.J_], projective_reconstruction[initial.K_]}, {item.lhs, item.middle, item.rhs}, X);
+      DLT({projective_reconstruction[initial.I_],
+           projective_reconstruction[initial.J_],
+           projective_reconstruction[initial.K_]},
+          {item.lhs, item.middle, item.rhs}, X);
       Eigen::Vector3d x = X.hnormalized();
       SparsePoint po(x.x(), x.y(), x.z());
       po.obs[initial.I_] = item.lhs.hnormalized();
@@ -238,7 +282,8 @@ void ProjectiveReconstruction(
     return container.find(item) != container.end();
   };
 
-  auto TripleValid = [ContanerExist](const TripleIndex& triple_index, const std::set<IndexT>& used_index) {
+  auto TripleValid = [ContanerExist](const TripleIndex& triple_index,
+                                     const std::set<IndexT>& used_index) {
     int count = 0;
     if (ContanerExist(used_index, triple_index.I_)) {
       count++;
@@ -279,14 +324,25 @@ void ProjectiveReconstruction(
         }
         const std::vector<KeyPoint>& first_keypoint = keypoint.at(first);
         const std::vector<KeyPoint>& second_keypoint = keypoint.at(second);
-        const std::vector<KeyPoint>& need_to_predict_keypoint = keypoint.at(need_to_predict);
-        std::vector<TriPair> data_point = TrackBuilder(
+        const std::vector<KeyPoint>& need_to_predict_keypoint =
+            keypoint.at(need_to_predict);
+        auto GetCorrectMatchs = [filter_matches](size_t i, size_t j) {
+          auto res = filter_matches.at({std::min(i, j), std::max(i, j)});
+          if (j > i) {
+            for (auto& item : res) {
+              std::swap(item.first, item.second);
+            }
+          }
+          return res;
+        };
+        std::vector<TriPair> data_point = TripleTrackBuilder(
             first_keypoint, second_keypoint, need_to_predict_keypoint,
-            filter_matches.at({first, second}),
-            filter_matches.at({second, need_to_predict}),
-            filter_matches.at({need_to_predict, first})
-            );
-        
+            GetCorrectMatchs(first, second),
+            GetCorrectMatchs(second, need_to_predict),
+            GetCorrectMatchs(need_to_predict, first));
+        if (data_point.size() < 7) {
+          continue;
+        }
 
         Trifocal trifocal;
         BundleRefineSolver solver;
@@ -296,7 +352,7 @@ void ProjectiveReconstruction(
                                     projective_reconstruction[first],
                                     projective_reconstruction[second],
                                     projective_reconstruction[need_to_predict]);
-        for(TriPair item : data_point) {
+        for (TriPair item : data_point) {
           Eigen::Vector4d X;
           DLT({projective_reconstruction[first],
                projective_reconstruction[second],
@@ -443,7 +499,8 @@ int main(int argc, char** argv) {
       for (size_t index : inlier_index) {
         filter_matchs.push_back(origin_matches.at(index));
       }
-      fundamental_filter_matches.insert({pair, filter_matchs});
+      fundamental_filter_matches.insert({pair, origin_matches});
+      fundamental_filter_matches.insert({{pair.second, pair.first}, ReverseMatches(origin_matches)});
     }
   }
   std::printf("%lu Matches are reserved after fundamental matrix filter\n",
@@ -466,7 +523,8 @@ int main(int argc, char** argv) {
   std::printf("Projective Reconstruction\n");
   std::map<IndexT, Mat34> projective_reconstruction;
   ProjectiveReconstruction(fundamental_matrix, fundamental_filter_matches,
-                           sfm_data.key_points, projective_reconstruction, sfm_data.structure_points);
+                           sfm_data.key_points, projective_reconstruction,
+                           sfm_data.structure_points);
 
   std::cout << "Reconstruction : " << projective_reconstruction.size()
             << std::endl;
@@ -479,8 +537,10 @@ int main(int argc, char** argv) {
 
   Eigen::Matrix4d Q = IAC(PS, 3072, 2304);
 
-  for(Mat34 P : PS) {
-    Eigen::Matrix3d omega = P * Q *P.transpose();
+  for (Mat34 P : PS) {
+    std::cout << "P : " << P << std::endl;
+    Eigen::Matrix3d omega = P * Q * P.transpose();
+    std::cout << "omega : " << omega << std::endl;
     Eigen::Matrix3d K = RecoveryK(omega, 3072, 2304);
     std::cout << "K : " << K << std::endl;
   }
