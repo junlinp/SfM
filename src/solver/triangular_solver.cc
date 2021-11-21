@@ -58,6 +58,19 @@ void DLT(const EigenAlignedVector<Mat34>& p_matrixs,
   //std::cout << "DLT Formula Condition Number : " << singular_value(0) / singular_value(3) << std::endl;
   //std::cout << "DLT Geometry Error : " << TriangularGeometryError(p_matrixs, obs, X) << std::endl;
 }
+
+void DLTTriangular(Eigen::Vector3d& lhs_obs, Eigen::Vector3d& rhs_obs, Mat34& lhs_p, Mat34& rhs_p, Eigen::Vector4d& X) {
+  Eigen::Matrix<double, 4, 4> A;
+  A.row(0) = lhs_obs(0) * lhs_p.row(2) - lhs_p.row(1);
+  A.row(1) = lhs_p.row(0) - lhs_obs(1) * lhs_p.row(1);
+  A.row(2) = rhs_obs(0) * rhs_p.row(2) - rhs_p.row(1);
+  A.row(3) = rhs_p.row(0) - rhs_obs(1) * rhs_p.row(1);
+
+  Eigen::JacobiSVD svd(A, Eigen::ComputeFullV);
+  X = svd.matrixV().col(3);
+  X = X / X(3);
+}
+
 void BundleAdjustmentTriangular(const EigenAlignedVector<Mat34>& p_matrixs, const EigenAlignedVector<Eigen::Vector3d>& obs, Eigen::Vector4d& X) {
     assert(p_matrixs.size() == obs.size());
     DLT(p_matrixs, obs, X);
