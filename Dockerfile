@@ -23,12 +23,16 @@ RUN git clone https://github.com/USCiLab/cereal
 WORKDIR /cereal
 RUN mkdir -p /cereal/build
 WORKDIR /cereal/build
-RUN cmake .. && make install
+RUN cmake -DBUILD_TESTS=OFF -DSKIP_PERFORMANCE_COMPARISON=ON .. && make install
 
+WORKDIR /
+RUN git clone https://github.com/google/googletest
+WORKDIR /googletest
+RUN cmake . && make install
 
+WORKDIR /SfM
 ADD ./src /SfM/src
 ADD ./CMakeLists.txt /SfM/CMakeLists.txt
-WORKDIR /SfM
 RUN mkdir -p /SfM/cmake-build-release
 WORKDIR /SfM/cmake-build-release
 RUN cmake -DCMAKE_BUILD_TYPE=Release ..

@@ -50,4 +50,4 @@ add_executable(DrawMatch_main src/draw_match_main.cc)
 target_link_libraries(DrawMatch_main PUBLIC SfMData ${OpenCV_LIBS})
 
 add_executable(Unittest src/unittest.cc)
-target_link_libraries(Unittest PUBLIC GTest::gtest Solver)
+target_link_libraries(Unittest PUBLIC Solver ${GTEST_LIBRARIES})
