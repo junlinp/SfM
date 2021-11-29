@@ -17,6 +17,14 @@ RUN apt-get install -y libsuitesparse-dev
 WORKDIR /ceres-solver-2.0.0
 RUN cmake . && make && make install
 
+#install cereal
+WORKDIR /
+RUN git clone https://github.com/USCiLab/cereal
+WORKDIR /cereal
+RUN mkdir -p /cereal/build
+WORKDIR /cereal/build
+RUN cmake .. && make install
+
 
 ADD ./src /SfM/src
 ADD ./CMakeLists.txt /SfM/CMakeLists.txt
