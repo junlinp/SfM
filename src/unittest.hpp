@@ -327,13 +327,13 @@ struct Scene {
 
   template <typename Functor>
   double TriangularError(Functor&& functor) {
-    EigenAlignedVector<Mat34> p_matrixs;
+    std::vector<Mat34> p_matrixs;
     for (auto i : Ps) {
       p_matrixs.push_back(i);
     }
     double error = 0.0;
     for (int j = 0; j < observations[0].size(); j++) {
-      EigenAlignedVector<Eigen::Vector3d> obs;
+      std::vector<Eigen::Vector3d> obs;
       for (int i = 0; i < Ps.size(); i++) {
         obs.push_back(observations[i][j].homogeneous());
       }

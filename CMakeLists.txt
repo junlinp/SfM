@@ -12,9 +12,6 @@ find_package(Eigen3 REQUIRED)
 
 add_subdirectory(src/third_party)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-#add_executable(SfM main.cpp src/feature_extractor.cc src/feature_extractor.hpp  src/descriptor.cc   src/camera_model.hpp src/image.cc src/image.hpp)
-#target_link_libraries(SfM ${OpenCV_LIBS} ${CERES_LIBRARIES})
-
 
 add_library(SfMData src/sfm_data_io.cc src/sfm_data_io.hpp src/sfm_data.hpp)
 target_link_libraries(SfMData PRIVATE cereal::cereal PUBLIC Eigen3::Eigen)
@@ -43,7 +40,7 @@ target_link_libraries(FeatureMatch PRIVATE SfMData)
 add_executable(FeatureMatch_main src/feature_match_main.cc)
 target_link_libraries(FeatureMatch_main PRIVATE FeatureMatch SfMData)
 
-add_executable(SFM_main src/sfm_main.cc)
+add_executable(SFM_main src/sfm_main.cc src/projective_constructure.cc)
 target_link_libraries(SFM_main PRIVATE SfMData Eigen3::Eigen Solver)
 
 add_executable(DrawMatch_main src/draw_match_main.cc)

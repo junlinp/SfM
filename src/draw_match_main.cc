@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
 
     std::vector<cv::DMatch> cv_matches;
     for (auto match : matches) {
-      cv::DMatch d(match.first, match.second, 0);
+      cv::DMatch d(match.lhs_idx, match.rhs_idx, 0);
       cv_matches.push_back(d);
     }
 

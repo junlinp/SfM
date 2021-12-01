@@ -5,13 +5,12 @@
 #include "internal/thread_pool.hpp"
 #include "metric.hpp"
 
-
 void BruteForceMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs) {
   // Initial data
   for (Pair pair : pairs) {
     sfm_data.matches[pair] = Matches();
   }
-  auto functor = [](Descriptors lhs, Descriptors rhs) {
+  auto functor = [](Descriptors lhs, Descriptors rhs, std::vector<KeyPoint> lhs_keypoint, std::vector<KeyPoint> rhs_keypoint) {
     size_t lhs_size = lhs.size();
     size_t rhs_size = rhs.size();
     Matches match;
@@ -34,7 +33,8 @@ void BruteForceMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs) {
         }
       }
       if (min_distance < 0.8 * second_min_distance) {
-        match.push_back({i, min_index});
+        struct Match m{ToObservation(lhs_keypoint[i]), ToObservation(rhs_keypoint[min_index]), i, IndexT(min_index)};
+        match.push_back(m);
       }
     }
     return match;
@@ -46,8 +46,10 @@ void BruteForceMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs) {
     for (Pair pair : pairs) {
       Descriptors lhs_descriptor = sfm_data.descriptors[pair.first];
       Descriptors rhs_descriptor = sfm_data.descriptors[pair.second];
+      std::vector<KeyPoint> lhs_keypoint = sfm_data.key_points[pair.first];
+      std::vector<KeyPoint> rhs_keypoint = sfm_data.key_points[pair.second];
 
-      auto res = thread_pool.Enqueue(functor, lhs_descriptor, rhs_descriptor);
+      auto res = thread_pool.Enqueue(functor, lhs_descriptor, rhs_descriptor, lhs_keypoint, rhs_keypoint);
       future_matches.insert({pair, std::move(res)});
     }
     int count = 0;

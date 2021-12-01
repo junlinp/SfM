@@ -36,8 +36,8 @@ double GeometryError(const TriPair data_point, Trifocal& model) {
   Mat34 P1, P2, P3;
   RecoveryCameraMatrix(model, P1, P2, P3);
 
-  EigenAlignedVector<Mat34> p_matrixs = {P1, P2, P3};
-  EigenAlignedVector<Eigen::Vector3d> obs = {data_point.lhs, data_point.middle,
+  std::vector<Mat34> p_matrixs = {P1, P2, P3};
+  std::vector<Eigen::Vector3d> obs = {data_point.lhs, data_point.middle,
                                              data_point.rhs};
 
   Eigen::Vector4d X;
@@ -261,11 +261,11 @@ void BundleRefineSolver::Fit(const std::vector<DataPointType>& data_points,
   linear_solver.Fit(data_points, model);
   RecoveryCameraMatrix(model, P1, P2, P3);
   std::vector<std::vector<double>> points;
-  EigenAlignedVector<Mat34> p_matrixs = {P1, P2, P3};
+  std::vector<Mat34> p_matrixs = {P1, P2, P3};
 
   ceres::Problem problem;
   for (const DataPointType& data_point : data_points) {
-    EigenAlignedVector<Eigen::Vector3d> obs = {
+    std::vector<Eigen::Vector3d> obs = {
         data_point.lhs, data_point.middle, data_point.rhs};
     Eigen::Vector4d X;
     DLT(p_matrixs, obs, X);

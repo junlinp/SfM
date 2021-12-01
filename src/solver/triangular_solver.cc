@@ -16,7 +16,7 @@ double TriangularGeometryError(const Mat34& p, const Eigen::Vector3d& obs, const
 
     return (hnormalized_obs - uv).squaredNorm();
 }
-double TriangularGeometryError(const EigenAlignedVector<Mat34>& p_matrixs, const EigenAlignedVector<Eigen::Vector3d>& obs, const Eigen::Vector4d& X) {
+double TriangularGeometryError(const std::vector<Mat34>& p_matrixs, const std::vector<Eigen::Vector3d>& obs, const Eigen::Vector4d& X) {
     double error = 0.0;
     assert(p_matrixs.size() == obs.size());
     size_t size = p_matrixs.size();
@@ -27,8 +27,8 @@ double TriangularGeometryError(const EigenAlignedVector<Mat34>& p_matrixs, const
 
 }
 }
-void DLT(const EigenAlignedVector<Mat34>& p_matrixs,
-         const EigenAlignedVector<Eigen::Vector3d>& obs, Eigen::Vector4d& X) {
+void DLT(const std::vector<Mat34>& p_matrixs,
+         const std::vector<Eigen::Vector3d>& obs, Eigen::Vector4d& X) {
   assert(p_matrixs.size() == obs.size());
   size_t size = p_matrixs.size();
   Eigen::MatrixXd coefficent(2 * size, 4);
@@ -53,7 +53,7 @@ void DLT(const EigenAlignedVector<Mat34>& p_matrixs,
 
   X = svd.matrixV().col(3);
   //std::cout << coefficent * X << std::endl;
-  // std::cout << "X : " << X << std::endl;
+  //std::cout << "X : " << X << std::endl;
   X = X / X(3);
   //std::cout << "DLT Formula Condition Number : " << singular_value(0) / singular_value(3) << std::endl;
   //std::cout << "DLT Geometry Error : " << TriangularGeometryError(p_matrixs, obs, X) << std::endl;
@@ -71,7 +71,7 @@ void DLTTriangular(Eigen::Vector3d& lhs_obs, Eigen::Vector3d& rhs_obs, Mat34& lh
   X = X / X(3);
 }
 
-void BundleAdjustmentTriangular(const EigenAlignedVector<Mat34>& p_matrixs, const EigenAlignedVector<Eigen::Vector3d>& obs, Eigen::Vector4d& X) {
+void BundleAdjustmentTriangular(const std::vector<Mat34>& p_matrixs, const std::vector<Eigen::Vector3d>& obs, Eigen::Vector4d& X) {
     assert(p_matrixs.size() == obs.size());
     DLT(p_matrixs, obs, X);
     double x[3] = {X(0) / X(3), X(1) / X(3), X(2) / X(3)};

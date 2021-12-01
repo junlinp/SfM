@@ -4,7 +4,7 @@
 #include "Eigen/Dense"
 
 using Mat34 = typename Eigen::Matrix<double, 3, 4, Eigen::RowMajor>;
-
+using Mat33 = Eigen::Matrix3d;
 //
 // More detials. see
 // http://eigen.tuxfamily.org/dox/group__TopicStlContainers.html

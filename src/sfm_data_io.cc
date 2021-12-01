@@ -24,6 +24,18 @@ template<class Archive>
 void serialize(Archive& ar, Descriptors& descriptors){
     ar(descriptors.getRaw_Data());
 }
+
+template<typename Archive>
+void serialize(Archive& ar, Match& match) {
+    // serialize the Eigen::Vector2d fails
+    // because cereal can't find the serialize function.
+    ar(match.lhs_observation.x());
+    ar(match.lhs_observation.y());
+    ar(match.rhs_observation.x());
+    ar(match.rhs_observation.y());
+    ar(match.lhs_idx);
+    ar(match.rhs_idx);
+}
 template<class Archive>
 void serialize(Archive& ar, SfMData& sfm_data) {
     ar(cereal::make_nvp("Views", sfm_data.views));
