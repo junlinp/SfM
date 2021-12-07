@@ -10,13 +10,11 @@
 #include "eigen_alias_types.hpp"
 
 using IndexT = int64_t;
-using Mat33 = Eigen::Matrix3d;
 
 struct View {
     std::string image_path;
 };
 
-using Observation = Eigen::Vector2d;
 template<typename T>
 Observation ToObservation(T other) {
     return Observation(other.x, other.y);

@@ -4,7 +4,7 @@
 #include "sfm_data.hpp"
 class BruteForceMatcher : public FeatureMatcherInterface {
 public:
-    void Match(SfMData& sfm_data, const std::set<Pair>& pairs) override;
+    void Match(SfMData& sfm_data, const std::set<Pair>& pairs, bool is_cross_valid = true) override;
 
     virtual ~BruteForceMatcher() = default;
 };

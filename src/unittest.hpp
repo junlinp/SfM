@@ -17,6 +17,7 @@
 #include "solver/trifocal_tensor_solver.hpp"
 #include "solver/self_calibration_solver.hpp"
 
+#include "solver/triangular_solver_test.hpp"
 TEST(ThreadPool, Enqueue) {
   auto functor = [](int a) { return 2 * a; };
   ThreadPool threadpool;
@@ -292,10 +293,9 @@ struct Scene {
   }
 
   template <typename FundamentalSolver>
-  void FundamentalMatrixCompute(Eigen::Matrix3d& F) {
+  void FundamentalMatrixCompute(Mat33& F) {
     using T = std::pair<Observation, Observation>;
-    std::vector<std::pair<Observation, Observation>,
-                Eigen::aligned_allocator<T>>
+    std::vector<std::pair<Observation, Observation>>
         data_points;
     data_points.resize(noised_observations[0].size());
     for (int i = 0; i < data_points.size(); i++) {
@@ -415,7 +415,7 @@ TEST(Fundamental, Performance) {
     Scene scene(2, 1024 * 16);
     // We need Solver
     // We need a Error Estimator
-    Eigen::Matrix3d F;
+    Mat33 F;
     scene.FundamentalMatrixCompute<EightPointFundamentalSolver>(F);
     // std::cout << F << std::endl;
     res += scene.FundamentalResiduals<SampsonError>(F);

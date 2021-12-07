@@ -71,26 +71,36 @@ class NormalSampler {
  * model);
  * @tparam Kernel
  */
-template <class Kernel, class ErrorEstimator>
+template <class Kernel, class ErrorEstimator,
+// Concept
+typename DataPointType = typename Kernel::DataPointType,
+auto MINIMUM_DATA_POINT = Kernel::MINIMUM_DATA_POINT,
+auto MODEL_FIT_NUMBER = Kernel::MODEL_NUMBER,
+auto MODEL_FREEDOM = Kernel::MODEL_FREEDOM,
+typename MODEL_TYPE = typename Kernel::ModelType,
+typename _Fit = std::invoke_result_t<decltype(Kernel::Fit), const std::vector<DataPointType>&,MODEL_TYPE*>,
+typename _Error = std::invoke_result_t<decltype(ErrorEstimator::Error), const DataPointType&,const MODEL_TYPE&>
+>
 class Ransac {
   static constexpr double chi_square_distribute[] = {
       0.0, 3.84, 5.99, 7.82, 9.49, 11.07, 12.59, 14.07, 15.51, 16.92, 18.31};
+/*
   using DataPointType = typename Kernel::DataPointType;
-
   static constexpr decltype(Kernel::MINIMUM_DATA_POINT) MINIMUM_DATA_POINT =
       Kernel::MINIMUM_DATA_POINT;
   static constexpr decltype(Kernel::MODEL_NUMBER) MODEL_FIT_NUMBER =
       Kernel::MODEL_NUMBER;
   static constexpr decltype(Kernel::MODEL_FREEDOM) MODEL_FREEDOM =
       Kernel::MODEL_FREEDOM;
-
   using MODEL_TYPE = typename Kernel::ModelType;
+*/
 
  public:
- template<typename Container>
-  static bool Inference(const Container& samples,
+  static bool Inference(const std::vector<DataPointType>& samples,
                  std::vector<size_t>& inlier_indexs, MODEL_TYPE* result_models) {
-    std::size_t N = std::numeric_limits<std::size_t>::max();
+    //std::size_t N = std::numeric_limits<std::size_t>::max();
+    constexpr std::size_t MaxEpoch = 4096;
+    std::size_t N = MaxEpoch;
     std::size_t sample_count = 0;
     NormalSampler sampler(samples.size());
     while (N > sample_count) {
@@ -100,7 +110,7 @@ class Ransac {
       sampler.Sample<MINIMUM_DATA_POINT>(samples, sample_index);
 
       MODEL_TYPE models[MODEL_FIT_NUMBER];
-      Container temp_sample;
+      std::vector<DataPointType> temp_sample;
       for (int index : sample_index) {
         temp_sample.push_back(samples[index]);
       }
@@ -133,10 +143,7 @@ class Ransac {
         }
         double epsilon =
             (samples.size() - inliner_index.size()) * 1.0 / (samples.size());
-        // std::printf("SAMPLE SIZE = %lu, inliner_index SIZE = %lu\n",
-        // samples.size(), inliner_index.size());
-        // std::printf("EPSILON = %lf\n", epsilon);
-        size_t temp_N =
+       size_t temp_N =
             std::ceil(std::log(1 - 0.99) /
                       std::log(1 - std::pow(1 - epsilon, MODEL_FREEDOM)));
         N = std::min(N, temp_N);
@@ -147,7 +154,7 @@ class Ransac {
       }
       sample_count++;
     }
-    return true;
+    return inlier_indexs.size() >= MINIMUM_DATA_POINT ? true : false;
   }
 
   static void Fit(const std::vector<DataPointType>& data_points, MODEL_TYPE& model) {

@@ -5,7 +5,7 @@
 #include "internal/thread_pool.hpp"
 #include "metric.hpp"
 
-void BruteForceMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs) {
+void BruteForceMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs, bool is_cross_valid) {
   // Initial data
   for (Pair pair : pairs) {
     sfm_data.matches[pair] = Matches();
@@ -51,11 +51,37 @@ void BruteForceMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs) {
 
       auto res = thread_pool.Enqueue(functor, lhs_descriptor, rhs_descriptor, lhs_keypoint, rhs_keypoint);
       future_matches.insert({pair, std::move(res)});
+      if (is_cross_valid) {
+        std::swap(pair.first, pair.second);
+        std::swap(lhs_descriptor, rhs_descriptor);
+        std::swap(lhs_keypoint, rhs_keypoint);
+        auto res = thread_pool.Enqueue(functor, lhs_descriptor, rhs_descriptor, lhs_keypoint, rhs_keypoint);
+        future_matches.insert({pair, std::move(res)});
+      }
     }
     int count = 0;
     int total_size = pairs.size();
     for (Pair pair : pairs) {
-        sfm_data.matches[pair] = future_matches[pair].get();
+        if (is_cross_valid) {
+          Pair reverse_pair{pair.second, pair.first};
+          Matches match = future_matches[pair].get();
+          Matches reverse_match = future_matches[reverse_pair].get();
+          std::map<IndexT, IndexT> map_;
+          for (auto m : reverse_match) {
+              map_.insert({m.lhs_idx, m.rhs_idx});
+          }
+
+          Matches temp_match;
+          for (auto m : match) {
+            if (map_[m.rhs_idx] == m.lhs_idx) {
+              temp_match.push_back(m);
+            }
+          }
+          sfm_data.matches[pair] = temp_match;
+        } else {
+
+          sfm_data.matches[pair] = future_matches[pair].get();
+        }
         std::printf("Finish %f %%\n", 100.0 * ++count / total_size);
     }
   }

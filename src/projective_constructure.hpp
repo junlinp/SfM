@@ -3,7 +3,10 @@
 
 struct Pose {
     Pose() =default;
-    Pose(const Mat34&) {}
+    Pose(const Mat34& P) :R(Mat33::Identity()), C(0.0, 0.0,0.0) {
+      R = P.block(0, 0, 3, 3);
+      C = - R.inverse() * P.block(0, 3, 3, 1);
+    }
 
     Mat33 R;
     Eigen::Vector3d C;
@@ -13,7 +16,21 @@ struct Pose {
       return p;
     }
 };
+// forward declaration
+struct Track {
+    // <ImageId, Observation>
+    std::map<IndexT, Observation> obs;
+    Eigen::Vector3d X;
 
+    void InsertHashCode(int64_t hash_code, Observation ob);
+
+    Track& operator+=(const Track& rhs) {
+      for (auto&& item : rhs.obs) {
+        obs.insert(item);
+      }
+      return *this;
+    }
+};
 class Correspondence {
   public:
   size_t size() { return cor_.size(); }
@@ -45,12 +62,31 @@ class Correspondence {
     return points;
   }
 
+  std::vector<std::pair<Observation, Eigen::Vector3d>> Get2D_3D() {
+    std::vector<std::pair<Observation, Eigen::Vector3d>> res;
+    for (auto&& [ptr, match] : cor_) {
+      res.push_back({match.rhs_observation, ptr->X});
+    }
+    return res;
+  }
+
+  Correspondence Filter(const std::vector<size_t>& inlier_index) {
+    Correspondence res;
+    auto begin = cor_.begin();
+
+    for (size_t diff : inlier_index) {
+      auto&& item = std::next(begin, diff);
+      res.Insert(item->first, item->second);
+    }
+    return res;
+  }
+
   private:
   // Track_id, Match
   // ptr_to_track, Match
   //std::map<IndexT, Match> cor_;
   std::map<Track*, Match> cor_;
-  
+  friend class TrackBuilder;
 };
 
 template <typename IndexType>
@@ -88,21 +124,7 @@ class UnionFindSet {
   std::map<IndexType, IndexType> idx_to_parent;
 };
 
-struct Track {
-    // <ImageId>
-    //std::map<IndexT, IndexT> obs;
-    std::map<IndexT, Observation> obs;
-    Eigen::Vector3d X;
 
-    void InsertHashCode(int64_t hash_code, Observation ob);
-
-    Track& operator+=(const Track& rhs) {
-      for (auto&& item : rhs.obs) {
-        obs.insert(item);
-      }
-      return *this;
-    }
-};
 
 class TrackBuilder {
     private:
@@ -114,9 +136,10 @@ class TrackBuilder {
     bool FeatureExists(IndexT image_idx, IndexT feature_idx) const;
     bool FeatureExists(int64_t hash_code) const;
     size_t GetTrackId(int64_t hash_code) const;
-    void CreateNewTrack(int64_t hash_code_1, Observation ob_1, int64_t hash_code_2, Observation ob_2);
+    size_t CreateNewTrack(int64_t hash_code_1, Observation ob_1, int64_t hash_code_2, Observation ob_2);
     void MergeTrack(int64_t from, int64_t to);
     void AppendFeatureToTrack(size_t track_id, int64_t hash_code, Observation ob);
+    void AppendCorrespondence(IndexT image_id, Correspondence cor);
     Track& GetTrackById(size_t track_id);
     std::vector<Track*> AllTrack();
 
@@ -127,8 +150,8 @@ class ProjectiveStructure {
     std::set<IndexT> image_ids;
     std::set<IndexT> remainer_ids;
 
-    std::map<IndexT, Pose> extrinsic_parameters;
-    Eigen::Matrix3d K_matrix;
+    std::map<IndexT, Mat34> extrinsic_parameters;
+
     TrackBuilder track_builder;
 
     std::map<Pair, Matches> all_matches;
@@ -148,5 +171,6 @@ public:
     void Register(IndexT image_id, Mat34 P, Correspondence correspondence);
     void TriangularNewPoint(IndexT image_id);
     void LocalBundleAdjustment();
+    std::vector<Track> GetTracks() const;
     // UnionFindSet
 };
