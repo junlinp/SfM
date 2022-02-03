@@ -56,8 +56,12 @@ jobs:
 
     - name: Install Ceres
       run: git clone https://github.com/ceres-solver/ceres-solver.git ${{github.workspace}}/ceres
-    - run: cmake -S ${{github.workspace}}/ceres -B ${{github.workspace}}/ceres/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-    - run: sudo cmake --install ${{github.workspace}}/ceres/build --config=${{env.BUILD_TYPE}}
+    - name: Build Ceres
+      run: cmake -S ${{github.workspace}}/ceres -B ${{github.workspace}}/ceres/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    - name: Compile Ceres
+      run: cmake --build ${{github.workspace}}/ceres/build --config=${{env.BUILD_TYPE}}
+    - name: Install Ceres
+      run: sudo cmake --install ${{github.workspace}}/ceres/build --config=${{env.BUILD_TYPE}}
     
     - name: Install OpenCV
       uses: rayandrews/with-opencv-action@v1
