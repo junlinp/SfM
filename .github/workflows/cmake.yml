@@ -24,7 +24,7 @@ jobs:
     - name: Build Eigen3
       run: cmake -S ${{github.workspace}}/eigen3 -B ${{github.workspace}}/eigen3/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
     - name: Install Eigen3
-      run: cmake --install ${{github.workspace}}/eigen3/build --config ${{env.BUILD_TYPE}}
+      run: sudo cmake --install ${{github.workspace}}/eigen3/build --config ${{env.BUILD_TYPE}}
       
     - name: Install Ceres
       run: git clone https://github.com/ceres-solver/ceres-solver.git ${{github.workspace}}/ceres
