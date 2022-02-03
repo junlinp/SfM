@@ -31,7 +31,7 @@ jobs:
     - name: Build gflags
       run: cmake -S ${{github.workspace}}/gflags -B ${{github.workspace}}/gflags/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
     - name: Install gflags
-      run: sudo cmake --install ${{github.workspace}}/gflags/build --config ${{env.BUILD_TYPE}}
+      run: sudo cmake --build ${{github.workspace}}/gflags/build --config ${{env.BUILD_TYPE}}
       
     - name: Install Ceres
       run: git clone https://github.com/ceres-solver/ceres-solver.git ${{github.workspace}}/ceres
