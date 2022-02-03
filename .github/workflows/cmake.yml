@@ -19,15 +19,17 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Install Eigen3
+    - name: Clone Eigen3
       run: git clone https://gitlab.com/libeigen/eigen.git ${{github.workspace}}/eigen3
     - name: Build Eigen3
       run: cmake -S ${{github.workspace}}/eigen3 -B ${{github.workspace}}/eigen3/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    - name: Install Eigen3
+      run: cmake --install ${{github.workspace}}/eigen3/build --config ${{env.BUILD_TYPE}}
       
     - name: Install Ceres
       run: git clone https://github.com/ceres-solver/ceres-solver.git ${{github.workspace}}/ceres
     - run: cmake -S ${{github.workspace}}/ceres -B ${{github.workspace}}/ceres/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-    - run: cmake --build ${{github.workspace}}/ceres/build --config=${{env.BUILD_TYPE}}
+    - run: cmake --install ${{github.workspace}}/ceres/build --config=${{env.BUILD_TYPE}}
     
     - name: Install OpenCV
       uses: rayandrews/with-opencv-action@v1
