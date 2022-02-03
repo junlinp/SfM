@@ -47,7 +47,7 @@ jobs:
     - name: Clone cereal
       run: git clone https://github.com/USCiLab/cereal.git ${{github.workspace}}/cereal
     - name: Build cereal
-      run: cmake -S ${{github.workspace}}/cereal -B ${{github.workspace}}/cereal/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DSKIP_PERFORMANCE_COMPARISON=ON
+      run: cmake -S ${{github.workspace}}/cereal -B ${{github.workspace}}/cereal/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DSKIP_PERFORMANCE_COMPARISON=ON -DSKIP_PORTABILITY_TEST=ON
     - name: Compile cereal
       run: cmake --build ${{github.workspace}}/cereal/build --config ${{env.BUILD_TYPE}}
     - name: Install cereal
