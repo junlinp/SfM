@@ -31,7 +31,7 @@ jobs:
     - name: Build glog
       run: cmake -S ${{github.workspace}}/glog -B ${{github.workspace}}/gflags/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
     - name: Compile glog
-      run cmake --build ${{github.workspace}}/glog/build --config ${{env.BUILD_TYPE}}
+      run: cmake --build ${{github.workspace}}/glog/build --config ${{env.BUILD_TYPE}}
     - name: Install glog
       run: sudo cmake --install ${{github.workspace}}/glog/build 
       
