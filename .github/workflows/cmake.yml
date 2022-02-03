@@ -20,7 +20,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install Ceres
-      run: git clone https://github.com/ceres-solver/ceres-solver.git && cmake --build ceres/build --config ${{env.BUILD_TYPE}}
+      run: git clone https://github.com/ceres-solver/ceres-solver.git & cmake --build ceres-solver/build --config ${{env.BUILD_TYPE}}
       
     - name: Install OpenCV
       uses: rayandrews/with-opencv-action@v1
