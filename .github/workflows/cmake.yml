@@ -29,7 +29,7 @@ jobs:
     - name: Clone glog
       run: git clone https://github.com/google/glog.git ${{github.workspace}}/glog
     - name: Build glog
-      run: cmake -S ${{github.workspace}}/glog -B ${{github.workspace}}/gflags/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      run: cmake -S ${{github.workspace}}/glog -B ${{github.workspace}}/glog/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
     - name: Compile glog
       run: cmake --build ${{github.workspace}}/glog/build --config ${{env.BUILD_TYPE}}
     - name: Install glog
