@@ -1,21 +1,8 @@
 #include "sfm_data.hpp"
 #include <unordered_set>
 
-struct Pose {
-    Pose() =default;
-    Pose(const Mat34& P) :R(Mat33::Identity()), C(0.0, 0.0,0.0) {
-      R = P.block(0, 0, 3, 3);
-      C = - R.inverse() * P.block(0, 3, 3, 1);
-    }
+#include "euclidean_structure.hpp"
 
-    Mat33 R;
-    Eigen::Vector3d C;
-    Mat34 P34() const {
-      Mat34 p;
-      p << R, -R * C;
-      return p;
-    }
-};
 // forward declaration
 struct Track {
     // <ImageId, Observation>
@@ -31,6 +18,7 @@ struct Track {
       return *this;
     }
 };
+
 class Correspondence {
   public:
   size_t size() { return cor_.size(); }
@@ -166,11 +154,14 @@ public:
 
     Correspondence FindCorrespondence(IndexT image_id) const; 
 
+    EuclideanStructure CameraCalibration();
+
     IndexT NextImage() const;
     void UnRegister(IndexT image_id);
     void Register(IndexT image_id, Mat34 P, Correspondence correspondence);
     void TriangularNewPoint(IndexT image_id);
     void LocalBundleAdjustment();
     std::vector<Track> GetTracks() const;
+
     // UnionFindSet
 };
