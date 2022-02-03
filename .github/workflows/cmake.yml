@@ -35,10 +35,29 @@ jobs:
     - name: Install glog
       run: sudo cmake --install ${{github.workspace}}/glog/build 
       
+    - name: Clone gtest
+      run: git clone https://github.com/google/googletest.git ${{github.workspace}}/gtest
+    - name: Build gtest
+      run: cmake -S ${{github.workspace}}/gtest -B ${{github.workspace}}/gtest/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    - name: Compile gtest
+      run: cmake --build ${{github.workspace}}/gtest/build --config ${{env.BUILD_TYPE}}
+    - name: Install gtest
+      run: sudo cmake --install ${{github.workspace}}/gtest/build 
+
+    - name: Clone cereal
+      run: git clone https://github.com/USCiLab/cereal.git ${{github.workspace}}/cereal
+    - name: Build cereal
+      run: cmake -S ${{github.workspace}}/cereal -B ${{github.workspace}}/cereal/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    - name: Compile cereal
+      run: cmake --build ${{github.workspace}}/cereal/build --config ${{env.BUILD_TYPE}}
+    - name: Install cereal
+      run: sudo cmake --install ${{github.workspace}}/cereal/build 
+
+
     - name: Install Ceres
       run: git clone https://github.com/ceres-solver/ceres-solver.git ${{github.workspace}}/ceres
     - run: cmake -S ${{github.workspace}}/ceres -B ${{github.workspace}}/ceres/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-    - run: cmake --install ${{github.workspace}}/ceres/build --config=${{env.BUILD_TYPE}}
+    - run: sudo cmake --install ${{github.workspace}}/ceres/build --config=${{env.BUILD_TYPE}}
     
     - name: Install OpenCV
       uses: rayandrews/with-opencv-action@v1
