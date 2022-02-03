@@ -26,6 +26,13 @@ jobs:
     - name: Install Eigen3
       run: sudo cmake --install ${{github.workspace}}/eigen3/build --config ${{env.BUILD_TYPE}}
       
+    - name: Clone gflags
+      run: git clone https://github.com/gflags/gflags.git ${{github.workspace}}/gflags
+    - name: Build gflags
+      run: cmake -S ${{github.workspace}}/gflags -B ${{github.workspace}}/gflags/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    - name: Install gflags
+      run: sudo cmake --install ${{github.workspace}}/gflags/build --config ${{env.BUILD_TYPE}}
+      
     - name: Install Ceres
       run: git clone https://github.com/ceres-solver/ceres-solver.git ${{github.workspace}}/ceres
     - run: cmake -S ${{github.workspace}}/ceres -B ${{github.workspace}}/ceres/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
