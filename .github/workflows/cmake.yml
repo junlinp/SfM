@@ -1,0 +1,84 @@
+name: CMake
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
+    # You can convert this to a matrix build if you need cross-platform coverage.
+    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Clone Eigen3
+      run: git clone https://gitlab.com/libeigen/eigen.git ${{github.workspace}}/eigen3
+    - name: Build Eigen3
+      run: cmake -S ${{github.workspace}}/eigen3 -B ${{github.workspace}}/eigen3/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    - name: Install Eigen3
+      run: sudo cmake --install ${{github.workspace}}/eigen3/build --config ${{env.BUILD_TYPE}}
+      
+    - name: Clone glog
+      run: git clone https://github.com/google/glog.git ${{github.workspace}}/glog
+    - name: Build glog
+      run: cmake -S ${{github.workspace}}/glog -B ${{github.workspace}}/glog/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    - name: Compile glog
+      run: cmake --build ${{github.workspace}}/glog/build --config ${{env.BUILD_TYPE}}
+    - name: Install glog
+      run: sudo cmake --install ${{github.workspace}}/glog/build 
+      
+    - name: Clone gtest
+      run: git clone https://github.com/google/googletest.git ${{github.workspace}}/gtest
+    - name: Build gtest
+      run: cmake -S ${{github.workspace}}/gtest -B ${{github.workspace}}/gtest/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    - name: Compile gtest
+      run: cmake --build ${{github.workspace}}/gtest/build --config ${{env.BUILD_TYPE}}
+    - name: Install gtest
+      run: sudo cmake --install ${{github.workspace}}/gtest/build 
+
+    - name: Clone cereal
+      run: git clone https://github.com/USCiLab/cereal.git ${{github.workspace}}/cereal
+    - name: Build cereal
+      run: cmake -S ${{github.workspace}}/cereal -B ${{github.workspace}}/cereal/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DSKIP_PERFORMANCE_COMPARISON=ON -DSKIP_PORTABILITY_TEST=ON -DBUILD_TESTS=OFF -DWITH_WERROR=OFF
+    - name: Compile cereal
+      run: cmake --build ${{github.workspace}}/cereal/build --config ${{env.BUILD_TYPE}}
+    - name: Install cereal
+      run: sudo cmake --install ${{github.workspace}}/cereal/build 
+
+
+    - name: Install Ceres
+      run: git clone https://github.com/ceres-solver/ceres-solver.git ${{github.workspace}}/ceres
+    - name: Build Ceres
+      run: cmake -S ${{github.workspace}}/ceres -B ${{github.workspace}}/ceres/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    - name: Compile Ceres
+      run: cmake --build ${{github.workspace}}/ceres/build --config=${{env.BUILD_TYPE}}
+    - name: Install Ceres
+      run: sudo cmake --install ${{github.workspace}}/ceres/build --config=${{env.BUILD_TYPE}}
+    
+    - name: Install OpenCV
+      uses: Dovyski/setup-opencv-action@v1
+      with:  
+          opencv-version: '4.x'
+    - name: Configure CMake
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+    - name: Build
+      # Build your program with the given configuration
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      # Execute tests defined by the CMake configuration.  
+      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
+      run: ctest -C ${{env.BUILD_TYPE}}
+      
