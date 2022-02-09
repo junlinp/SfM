@@ -12,38 +12,55 @@
 #include "keypoint.hpp"
 
 #include "ransac.hpp"
-
-namespace {
-  using Observation = Eigen::Vector2d;
-
-}
+#include "eigen_alias_types.hpp"
 
 struct EightPointFundamentalSolverImpl {
   using DataPointType = std::pair<Observation, Observation>;
-  using ModelType = Eigen::Matrix3d;
+  using ModelType = Mat33;
 
   static constexpr size_t MINIMUM_DATA_POINT = 8;
-  static constexpr size_t MODEL_FREEDOM = 4;
+  static constexpr size_t MODEL_FREEDOM = 2;
   static constexpr size_t MODEL_NUMBER = 1;
-  static void Fit(
-      const std::vector<std::pair<Observation, Observation>, Eigen::aligned_allocator<DataPointType>>& data_points,
-      Eigen::Matrix3d* models);
+  static bool Fit(
+      const std::vector<DataPointType>& data_points,
+      ModelType* models);
 };
 
+
+
+// 
+// Using Sampson Error to Ransac
+// will cause DLT fails.
+//
 struct SampsonError {
   static double Error(const std::pair<Observation, Observation>& data_point,
-                      const Eigen::Matrix3d& F) {
+                      const Mat33& F) {
     Eigen::Vector3d lhs_vector, rhs_vector;
     lhs_vector = data_point.first.homogeneous(); 
     rhs_vector = data_point.second.homogeneous();
 
-    Eigen::Vector3d rhs_f = rhs_vector.transpose() * F;
-    Eigen::Vector3d lhs_f = F.transpose() * lhs_vector;
+    Eigen::Vector3d rhs_f = F.transpose() * rhs_vector;
+    Eigen::Vector3d lhs_f = F * lhs_vector;
     auto squared = [](double n) { return n * n; };
     double deno = squared(lhs_f(0)) + squared(lhs_f(1)) + squared(rhs_f(0)) +
                   squared(rhs_f(1));
     return squared((rhs_vector.transpose() * F).dot(lhs_vector)) / deno;
                       }
+};
+
+struct EpipolarLineError {
+  static double Error(const std::pair<Observation, Observation>& data_point, const Mat33& F) {
+    Eigen::Vector3d lhs_vector, rhs_vector;
+    lhs_vector = data_point.first.homogeneous(); 
+    rhs_vector = data_point.second.homogeneous();
+
+    Eigen::Vector3d rhs_f = F.transpose() * rhs_vector;
+    Eigen::Vector3d lhs_f = F * lhs_vector;
+    auto squared = [](double n) { return n * n; };
+    double deno = (1.0 / (squared(lhs_f(0)) + squared(lhs_f(1)))) + (1.0 / (squared(rhs_f(0)) +
+                  squared(rhs_f(1))));
+    return squared((rhs_vector.transpose() * F).dot(lhs_vector)) * deno;
+  }
 };
 
 
@@ -54,7 +71,7 @@ class FundamentalSolverInterface {
 
   public:
   using DataPointType = std::pair<Eigen::Vector2d, Eigen::Vector2d>;
-  using ModelType = Eigen::Matrix3d;
+  using ModelType = Mat33;
   bool Fit(const std::vector<DataPointType>& data_points, ModelType& model) {
     return static_cast<Derived*>(this)->Fit(data_points, model);
   }
@@ -67,10 +84,13 @@ class FundamentalSolverInterface {
 class RansacEightPointFundamentalSolverInterface : public FundamentalSolverInterface<RansacEightPointFundamentalSolverInterface> {
  public:
 
-  bool Fit(const std::vector<DataPointType, Eigen::aligned_allocator<DataPointType>>& data_points,
+  bool Fit(const std::vector<DataPointType>& data_points,
                   ModelType& models) {
     std::vector<size_t> placeholder;
-    return Ransac<EightPointFundamentalSolverImpl, SampsonError>::Inference(
+    //return Ransac<EightPointFundamentalSolverImpl, SampsonError>::Inference(
+    //    data_points, placeholder, &models);
+
+    return Ransac<EightPointFundamentalSolverImpl, EpipolarLineError>::Inference(
         data_points, placeholder, &models);
   }
 };

@@ -5,13 +5,12 @@
 #include "internal/thread_pool.hpp"
 #include "metric.hpp"
 
-
-void BruteForceMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs) {
+void BruteForceMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs, bool is_cross_valid) {
   // Initial data
   for (Pair pair : pairs) {
     sfm_data.matches[pair] = Matches();
   }
-  auto functor = [](Descriptors lhs, Descriptors rhs) {
+  auto functor = [](Descriptors lhs, Descriptors rhs, std::vector<KeyPoint> lhs_keypoint, std::vector<KeyPoint> rhs_keypoint) {
     size_t lhs_size = lhs.size();
     size_t rhs_size = rhs.size();
     Matches match;
@@ -34,7 +33,8 @@ void BruteForceMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs) {
         }
       }
       if (min_distance < 0.8 * second_min_distance) {
-        match.push_back({i, min_index});
+        struct Match m{ToObservation(lhs_keypoint[i]), ToObservation(rhs_keypoint[min_index]), i, IndexT(min_index)};
+        match.push_back(m);
       }
     }
     return match;
@@ -46,14 +46,42 @@ void BruteForceMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs) {
     for (Pair pair : pairs) {
       Descriptors lhs_descriptor = sfm_data.descriptors[pair.first];
       Descriptors rhs_descriptor = sfm_data.descriptors[pair.second];
+      std::vector<KeyPoint> lhs_keypoint = sfm_data.key_points[pair.first];
+      std::vector<KeyPoint> rhs_keypoint = sfm_data.key_points[pair.second];
 
-      auto res = thread_pool.Enqueue(functor, lhs_descriptor, rhs_descriptor);
+      auto res = thread_pool.Enqueue(functor, lhs_descriptor, rhs_descriptor, lhs_keypoint, rhs_keypoint);
       future_matches.insert({pair, std::move(res)});
+      if (is_cross_valid) {
+        std::swap(pair.first, pair.second);
+        std::swap(lhs_descriptor, rhs_descriptor);
+        std::swap(lhs_keypoint, rhs_keypoint);
+        auto res = thread_pool.Enqueue(functor, lhs_descriptor, rhs_descriptor, lhs_keypoint, rhs_keypoint);
+        future_matches.insert({pair, std::move(res)});
+      }
     }
     int count = 0;
     int total_size = pairs.size();
     for (Pair pair : pairs) {
-        sfm_data.matches[pair] = future_matches[pair].get();
+        if (is_cross_valid) {
+          Pair reverse_pair{pair.second, pair.first};
+          Matches match = future_matches[pair].get();
+          Matches reverse_match = future_matches[reverse_pair].get();
+          std::map<IndexT, IndexT> map_;
+          for (auto m : reverse_match) {
+              map_.insert({m.lhs_idx, m.rhs_idx});
+          }
+
+          Matches temp_match;
+          for (auto m : match) {
+            if (map_[m.rhs_idx] == m.lhs_idx) {
+              temp_match.push_back(m);
+            }
+          }
+          sfm_data.matches[pair] = temp_match;
+        } else {
+
+          sfm_data.matches[pair] = future_matches[pair].get();
+        }
         std::printf("Finish %f %%\n", 100.0 * ++count / total_size);
     }
   }

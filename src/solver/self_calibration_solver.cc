@@ -7,9 +7,13 @@ Eigen::Matrix<double, 1, 16> GenerateCoeffient(const Mat34 P, size_t row,
       P(row - 1, 2) * rhs.transpose(), P(row - 1, 3) * rhs.transpose();
   return res;
 }
+
 Eigen::Matrix4d IAC(const std::vector<Mat34>& P, size_t image_width, size_t image_height) {
   size_t cx = image_width / 2;
   size_t cy = image_height / 2;
+
+  // only use the pricipal point constraint
+
   //  4 * projective_reconstruction * 16
   size_t cameras_size = P.size();
   Eigen::MatrixXd coeffient(6 * cameras_size, 16);
@@ -30,27 +34,25 @@ Eigen::Matrix4d IAC(const std::vector<Mat34>& P, size_t image_width, size_t imag
     constant(count * 6 + 5) = cy * cx;
     count++;
   }
-  //std::cout << "Generate coeffient Finish" << std::endl;
 
   // Solve Least-Squares Method
   Eigen::VectorXd Q_coeffient = coeffient.colPivHouseholderQr().solve(constant);
-  //std::cout << "coeffient : " << Q_coeffient << std::endl;
   Eigen::Matrix4d Q =
-      Eigen::Map<Eigen::Matrix<double, 4, 4>>(Q_coeffient.data());
-  //std::cout << "Solved " << Q << std::endl;
+      Eigen::Map<Eigen::Matrix<double, 4, 4, Eigen::RowMajor>>(Q_coeffient.data());
+  //
   // SVD Q = HIH with I is diag(1, 1, 1, 0)
+  // But in pratice, Q may not has eigen vlaue with (1, 1, 1, 0) exactly
+  // this solution of Q can be the initial value for the iterative methods.
+  // Q can be decomposed as [ KK^T   -KK^Tp]
+  //                        [ -p^TKK^T p^TKK^Tp]
+  // Q will be parametered with K and p (K has 5 degree of freedom, and p has 3 degree of freedom)
   Eigen::JacobiSVD svd(Q, Eigen::ComputeFullU | Eigen::ComputeFullV);
   Eigen::Vector4d diag = svd.singularValues();
-  //std::cout << "Singular Value : " << diag << std::endl;
   diag(3) = 0.0;
 
   Q = svd.matrixU() * diag.asDiagonal() * svd.matrixV().transpose();
   return Q;
-  //std::cout << "Q Matrix : " << Q << std::endl;
-  //svd = Eigen::JacobiSVD(Q, Eigen::ComputeFullV);
-  //Eigen::Matrix4d H = svd.matrixV();
-
-  //return H;
+  
 }
 
 

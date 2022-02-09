@@ -34,8 +34,11 @@ void Gray(cv::Mat image, std::vector<float>& gray_image) {
     }
 }
 
-size_t VlFeatureExtractor_(const std::string& path, std::vector<KeyPoint>& keypoints, Descriptors& descriptors) {
+size_t VlFeatureExtractor_(const std::string& path, std::vector<KeyPoint>& keypoints, Descriptors& descriptors, size_t& image_width, size_t& image_height) {
   cv::Mat image = cv::imread(path);
+  image_width = image.cols;
+  image_height = image.rows;
+
   VlSiftFilt* sift_handle = vl_sift_new(image.cols, image.rows, 6, 3, 0);
   vl_sift_set_edge_thresh(sift_handle, 10.0);
   vl_sift_set_peak_thresh(sift_handle, 255 * 0.04 / 3);
@@ -84,7 +87,10 @@ bool VlfeatFeatureExtractor::FeatureExtractor(SfMData& sfm_data) {
 
         auto res = thread_pool.Enqueue(VlFeatureExtractor_, std::move(image_path),
                             std::ref(sfm_data.key_points[view_iter.first]),
-                            std::ref(sfm_data.descriptors[view_iter.first]));
+                            std::ref(sfm_data.descriptors[view_iter.first]),
+                            std::ref(sfm_data.image_width),
+                            std::ref(sfm_data.image_height)
+                            );
 
         t.emplace_back(std::move(res));
     }

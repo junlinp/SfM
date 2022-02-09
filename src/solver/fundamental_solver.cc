@@ -23,7 +23,7 @@ Eigen::Matrix3d Normal(const Eigen::Matrix<double, 2, 8>& data) {
   return res;
 }
 
-void FitImpl(const Eigen::Matrix<double, 3, 8>& lhs,const Eigen::Matrix<double, 3, 8>& rhs, Eigen::Matrix3d* models) {
+void FitImpl(const Eigen::Matrix<double, 3, 8>& lhs,const Eigen::Matrix<double, 3, 8>& rhs, Mat33* models) {
   Eigen::Matrix<double, 8, 9> A;
 
   for(int i = 0; i < 8; i++) {
@@ -66,29 +66,27 @@ void FitImpl(const Eigen::Matrix<double, 3, 8>& lhs,const Eigen::Matrix<double, 
   // std::cout << rhs.transpose() * F * lhs << std::endl;
 }
 
-void FitImpl(const Eigen::Matrix<double, 2, 8>& lhs,const Eigen::Matrix<double, 2, 8>& rhs, Eigen::Matrix3d* models) {
+void FitImpl(const Eigen::Matrix<double, 2, 8>& lhs,const Eigen::Matrix<double, 2, 8>& rhs, Mat33* models) {
   Eigen::Matrix<double, 3, 8> lhs_homogous = lhs.colwise().homogeneous();
   Eigen::Matrix<double, 3, 8> rhs_homogous = rhs.colwise().homogeneous();
 
   Eigen::Matrix3d T = Normal(lhs);
   Eigen::Matrix3d T_dot = Normal(rhs);
 
-  lhs_homogous = T * lhs_homogous;
-  rhs_homogous = T_dot * rhs_homogous;
+  //lhs_homogous = T * lhs_homogous;
+  //rhs_homogous = T_dot * rhs_homogous;
   // lhs^t * F * rhs = 0
   // (T * lhs)^t * F * (T_dot * rhs) = 0
   // lhs^t * T^t * T^-t * F * T_dot-1 * T_dot * rhs = 0 
   FitImpl(lhs_homogous, rhs_homogous, models);
 
-  *models = T_dot.transpose() * (*models) * T;
+  //*models = T_dot.transpose() * (*models) * T;
 }
 
-void EightPointFundamentalSolverImpl::Fit(
-    const std::vector<EightPointFundamentalSolverImpl::DataPointType,
-                      Eigen::aligned_allocator<
-                          EightPointFundamentalSolverImpl::DataPointType>>&
+bool EightPointFundamentalSolverImpl::Fit(
+    const std::vector<DataPointType>&
         data_points,
-    Eigen::Matrix3d* models) {
+    ModelType* models) {
   assert(data_points.size() == EightPointFundamentalSolverImpl::MINIMUM_DATA_POINT);
   Eigen::Matrix<double, 2, 8> lhs, rhs;
   for (int i = 0; i < 8; i++) {
@@ -96,4 +94,5 @@ void EightPointFundamentalSolverImpl::Fit(
     rhs.col(i) = data_points[i].second;
   }
   FitImpl(lhs, rhs, models);
+  return true;
 }

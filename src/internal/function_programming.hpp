@@ -89,7 +89,7 @@ auto operator|(Container&& container, TransformContainerBuilder<Functor>&& build
 
 struct ToVectorBuilder{};
 
-ToVectorBuilder ToVector() {
+inline ToVectorBuilder ToVector() {
     return ToVectorBuilder();
 }
 template <class Container>
@@ -104,7 +104,7 @@ auto operator|(Container&& container, ToVectorBuilder&& /**/) {
 
 template<class InputIterator, class Predicate, class OutputType>
 struct FilterIterator : std::iterator<std::forward_iterator_tag, OutputType> {
-    FilterIterator(InputIterator iterator, Predicate predicate, const InputIterator& begin, const InputIterator& end) : iterator_(iterator), predicate_(predicate), begin_(begin), end_(end) {
+    FilterIterator(InputIterator iterator, Predicate predicate, InputIterator begin, InputIterator end) : iterator_(iterator), predicate_(predicate), begin_(begin), end_(end) {
         iterator_ = std::find_if(iterator_, end_, predicate_);
     }
 
@@ -116,7 +116,7 @@ struct FilterIterator : std::iterator<std::forward_iterator_tag, OutputType> {
     }
 
     bool operator!=(const FilterIterator& rhs) const {
-        return iterator_ != rhs.iterator;
+        return iterator_ != rhs.iterator_;
     }
 
     OutputType operator*() const {

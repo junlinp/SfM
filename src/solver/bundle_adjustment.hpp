@@ -72,18 +72,16 @@ struct ConstCameraMatrixCostFunctor {
         // X is 3-dimensional vector
         template<typename T>
         bool operator()(const T* X, T* output) const {
-            T x_[4] = {X[0], X[1], X[2], T(1.0)};
             T product[3];
             for (int i = 0; i < 3; i++) {
-                product[i] = T(0.0);
-                for (int k = 0; k < 4; k++) {
-                    product[i] += T(p_matrixs_(i, k)) * x_[k];
+                product[i] = T(p_matrixs_(i, 3));
+                for (int k = 0; k < 3; k++) {
+                    product[i] += T(p_matrixs_(i, k)) * X[k];
                 }
             }
-            product[0] /= product[2];
-            product[1] /= product[2];
-            output[0] = product[0] - T(obs_(0));
-            output[1] = product[1] - T(obs_(1));
+
+            output[0] = product[0] - T(obs_(0)) * product[2];
+            output[1] = product[1] - T(obs_(1)) * product[2];
             return true;
         }
     };
@@ -109,5 +107,7 @@ struct CostFunctor {
     return true;
   }
 };
+
+
 
 #endif  // SRC_SOLVER_BUNDLE_ADJUSTMENT_HPP_

@@ -2,6 +2,7 @@
 #define SRC_SOLVER_ALGEBRA_HPP_
 
 #include <iostream>
+#include "Eigen/Dense"
 
 template<typename Derived>
 Eigen::VectorXd NullSpace(const Derived& m) {
@@ -25,9 +26,9 @@ Eigen::VectorXd NullSpace(const Eigen::Transpose<T>& m) {
 template<class T>
 Eigen::Matrix3d SkewMatrix(const T& v) {
     Eigen::Matrix3d res;
-    res << 0.0, -v(2), v(0),
-           v(2), 0.0,  -v(1),
-           -v(0), v(1), 0.0;
+    res << 0.0, -v(2), v(1),
+           v(2), 0.0,  -v(0),
+           -v(1), v(0), 0.0;
     return res;
 }
 

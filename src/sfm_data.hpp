@@ -3,21 +3,34 @@
 
 #include <string>
 #include <map>
+#include <set>
 
 #include "descriptor.hpp"
 #include "keypoint.hpp"
-#include "Eigen/Dense"
+#include "eigen_alias_types.hpp"
 
 using IndexT = int64_t;
 
 struct View {
     std::string image_path;
 };
-using Pair = std::pair<IndexT, IndexT>;
-using Matche = std::pair<size_t, size_t>;
-using Matches = std::vector<Matche>;
 
-using Observation = Eigen::Vector2d;
+template<typename T>
+Observation ToObservation(T other) {
+    return Observation(other.x, other.y);
+}
+struct Match {
+    Observation lhs_observation, rhs_observation;
+    // used to hash
+    IndexT lhs_idx, rhs_idx;
+};
+
+using Pair = std::pair<IndexT, IndexT>;
+
+//using Match = std::pair<size_t, size_t>;
+
+using Matches = std::vector<Match>;
+
 
 struct SparsePoint {
     double x, y, z;
@@ -26,7 +39,10 @@ struct SparsePoint {
     std::map<IndexT,  Observation> obs;
 };
 
+
 struct SfMData {
+
+    size_t image_width, image_height;
     std::map<IndexT, View> views;
 
     // Features

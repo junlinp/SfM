@@ -5,7 +5,7 @@
 class FeatureMatcherInterface {
 public:
 
-    virtual void Match(SfMData& sfm_data, const std::set<Pair>& pairs) = 0;
+    virtual void Match(SfMData& sfm_data, const std::set<Pair>& pairs, bool is_corss_valid = true) = 0;
 
     virtual ~FeatureMatcherInterface() = default;
 };
