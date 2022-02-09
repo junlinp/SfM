@@ -41,6 +41,8 @@ struct SparsePoint {
 
 
 struct SfMData {
+
+    size_t image_width, image_height;
     std::map<IndexT, View> views;
 
     // Features

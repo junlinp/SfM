@@ -53,5 +53,8 @@ target_link_libraries(SFM_main PRIVATE SfMData Eigen3::Eigen Solver)
 add_executable(DrawMatch_main src/draw_match_main.cc)
 target_link_libraries(DrawMatch_main PUBLIC SfMData ${OpenCV_LIBS})
 
+add_executable(DrawMatchFilter_main src/draw_match_filter_main.cc)
+target_link_libraries(DrawMatchFilter_main PUBLIC SfMData ${OpenCV_LIBS} Solver)
+
 add_executable(Unittest src/unittest.cc)
 target_link_libraries(Unittest PUBLIC Solver ${GTEST_LIBRARIES})

@@ -160,7 +160,6 @@ void ProjectiveStructure::InitializeStructure(const Pair& initial_pair,
   std::vector<Track*> tracks = track_builder.AllTrack();
 
   std::printf("Triangluar Structure %lu Points\n", tracks.size());
-
   for (Track* track_ptr : tracks) {
     // DLT
     std::vector<Mat34> P_matrixs;
@@ -174,6 +173,7 @@ void ProjectiveStructure::InitializeStructure(const Pair& initial_pair,
     DLT(P_matrixs, obs, X);
     track_ptr->X = X.hnormalized();
   }
+  const_camera_matrix_index = initial_pair.first;
 }
 
 Correspondence ProjectiveStructure::FindCorrespondence(IndexT image_id) const {
@@ -248,7 +248,7 @@ double Error(const Mat34& P1, const Observation& ob1, Eigen::Vector4d& X) {
 
 double Error(const Mat34& P1, const Observation& ob1, const Mat34& P2,
              const Observation& ob2, Eigen::Vector4d& X) {
-  return (Error(P1, ob1, X) + Error(P2, ob2, X)) / 2.0;
+  return (Error(P1, ob1, X) + Error(P2, ob2, X));
 }
 }  // namespace
 void ProjectiveStructure::TriangularNewPoint(IndexT image_id) {
@@ -318,7 +318,9 @@ struct ReProjectiveError {
 
 double LocalProjectiveBundleAdjustment(
     std::map<IndexT, Mat34>& extrinsic_parameters,
-    std::vector<Track*>& tracks) {
+    std::vector<Track*>& tracks,
+    IndexT const_camera_matrix_index
+    ) {
   ceres::Problem problem;
 
   for (Track* track_ptr : tracks) {
@@ -332,6 +334,8 @@ double LocalProjectiveBundleAdjustment(
       problem.AddResidualBlock(cost_function_ptr, nullptr, P.data(), X.data());
     }
   }
+  Mat34& const_P = extrinsic_parameters[const_camera_matrix_index];
+  problem.SetParameterBlockConstant(const_P.data());
 
   ceres::Solver::Summary sumary;
   ceres::Solver::Options solver_options;
@@ -355,7 +359,7 @@ void ProjectiveStructure::LocalBundleAdjustment() {
   std::vector<Track*> tracks = track_builder.AllTrack();
 
   double final_objective_cost =
-      LocalProjectiveBundleAdjustment(extrinsic_parameters, tracks);
+      LocalProjectiveBundleAdjustment(extrinsic_parameters, tracks, this->const_camera_matrix_index);
   std::cout << "Local RMSE : " << final_objective_cost << std::endl;
 }
 

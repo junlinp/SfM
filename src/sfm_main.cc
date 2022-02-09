@@ -14,6 +14,40 @@
 #include "solver/triangular_solver.hpp"
 #include "solver/trifocal_tensor_solver.hpp"
 #include "solver/resection_solver.hpp"
+bool ComputeFundamentalMatrix(const std::vector<Observation>& lhs_keypoint,
+                              const std::vector<Observation>& rhs_keypoint,
+                              Mat33* fundamental_matrix,
+                              std::vector<size_t>* inlier_index_ptr) {
+  assert(lhs_keypoint.size() == rhs_keypoint.size());
+  std::vector<typename EightPointFundamentalSolver::DataPointType> datas;
+  for (int i = 0; i < lhs_keypoint.size(); i++) {
+    Eigen::Vector2d lhs_temp(lhs_keypoint[i].x(), lhs_keypoint[i].y());
+    Eigen::Vector2d rhs_temp(rhs_keypoint[i].x(), rhs_keypoint[i].y());
+    datas.push_back({lhs_temp, rhs_temp});
+  }
+  EightPointFundamentalSolver ransac_solver;
+
+  ransac_solver.Fit(datas, *fundamental_matrix);
+  double threshold = 3.84;
+
+  std::vector<size_t> inlier_indexs;
+  for (int i = 0; i < lhs_keypoint.size(); i++) {
+    Eigen::Vector2d lhs_temp(lhs_keypoint[i].x(), lhs_keypoint[i].y());
+    Eigen::Vector2d rhs_temp(rhs_keypoint[i].x(), rhs_keypoint[i].y());
+    double error =
+        //SampsonError::Error({lhs_temp, rhs_temp}, *fundamental_matrix);
+        EpipolarLineError::Error({lhs_temp, rhs_temp}, *fundamental_matrix);
+    if (error < threshold) {
+      inlier_indexs.push_back(i);
+    }
+  }
+  std::printf("inlier : %lu\n", inlier_indexs.size());
+  bool ans = inlier_indexs.size() > 30;
+  if (inlier_index_ptr != nullptr) {
+    *inlier_index_ptr = std::move(inlier_indexs);
+  }
+  return ans;
+}
 
 bool ComputeFundamentalMatrix(const std::vector<KeyPoint>& lhs_keypoint,
                               const std::vector<KeyPoint>& rhs_keypoint,
@@ -198,6 +232,7 @@ ProjectiveStructure InitializeStructure(const Pair& initial_pair,
   //
   ComputeFundamentalMatrix(matches, &fundamental_matrix, &inliers_matches);
   std::cout << "Initial Fundamental : " << fundamental_matrix << std::endl;
+  std::cout << "Fundamental Matrix singular value : " << fundamental_matrix.jacobiSvd().singularValues() << std::endl;
   //FCheck(fundamental_matrix, inliers_matches);
   //std::cout << "Redundant : " << Redundant(inliers_matches) << std::endl;
 
@@ -219,20 +254,6 @@ ProjectiveStructure InitializeStructure(const Pair& initial_pair,
 
   projective_structure.InitializeStructure(initial_pair, inliers_matches, P1,
                                            P2);
-
-  auto Matches_2_3 = inliers_matches;
-  auto Matches_2_4 = sfm_data->matches.at({2, 4});
-  std::set<IndexT> s;
-  for (Match m : Matches_2_3) {
-    s.insert(m.lhs_idx);
-  }
-  int count = 0;
-  for (Match m : Matches_2_4) {
-    if (s.find(m.lhs_idx) != s.end()) {
-      count++;
-    }
-  }
-  std::printf("Triple Count %d\n", count);
   return projective_structure;
 }
 
@@ -334,7 +355,33 @@ int main(int argc, char** argv) {
     std::printf("Load Sfm Data From %s Fails\n", argv[1]);
     return 1;
   }
+  
+  std::cout << sfm_data.matches.size() << "Match " << std::endl;
+  std::map<Pair, Matches> filter_matches;
 
+  for (auto&& [pair, matches] : sfm_data.matches) {
+    std::vector<Observation> lhs, rhs;
+    for (Match match : matches) {
+      lhs.push_back(match.lhs_observation);
+      rhs.push_back(match.rhs_observation);
+    }
+
+    Mat33 fundamental;
+    std::vector<size_t> inlier;
+    bool ans = ComputeFundamentalMatrix(lhs, rhs, &fundamental, &inlier);
+    if (ans) {
+
+      Matches t;
+      for (size_t index : inlier) {
+        t.push_back(matches[index]);
+      }
+      filter_matches[pair] = t;
+    }
+  }
+
+  sfm_data.matches = filter_matches;
+
+  std::cout << "After Filter : " << sfm_data.matches.size() << "Match " << std::endl;
 
   // TODO (junlinp@qq.com):
   // print out the scene graph status whether the matches
@@ -361,13 +408,29 @@ int main(int argc, char** argv) {
 
   projective_structure.LocalBundleAdjustment();
 
+  auto PS = projective_structure.GetPMatrix();
+  Eigen::Matrix4d Q = IAC(PS, sfm_data.image_width, sfm_data.image_height);
+
+  // TODO: junlinp@qq.com
+  // the eigen value of Q is not identity.
+  // 
+  auto svd = Q.bdcSvd();
+  std::cout << "Q singularValue : " << svd.singularValues() << std::endl;
+  projective_structure.ApplyQMatrix(Q);
+
   // IAC to Compute K R C and the homogeneous transform of Q
   // to a True Euclidean Reconstruction
 
   std::vector<Track> tracks = projective_structure.GetTracks();
   for (Track track : tracks) {
-    SparsePoint sp(track.X.x(), track.X.y(), track.X.z());
-    sfm_data.structure_points.push_back(sp);
+    std::cout << "Point : " << track.X << std::endl;
+    double x = track.X.x();
+    double y = track.X.y();
+    double z = track.X.z();
+    if (std::abs(x) < 1000.0 && std::abs(y) < 1000.0 && std::abs(z) < 1000.0) {
+      SparsePoint sp(track.X.x(), track.X.y(), track.X.z());
+      sfm_data.structure_points.push_back(sp);
+    }
   }
   std::printf("%lu Point totally\n", tracks.size());
   ToPly(sfm_data.structure_points, "./sparse_point.ply");

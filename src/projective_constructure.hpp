@@ -1,7 +1,7 @@
 #include "sfm_data.hpp"
 #include <unordered_set>
 
-#include "euclidean_structure.hpp"
+//#include "euclidean_structure.hpp"
 
 // forward declaration
 struct Track {
@@ -134,6 +134,8 @@ class TrackBuilder {
 };
 
 class ProjectiveStructure {
+    // the index of identity camera matrix.
+    IndexT const_camera_matrix_index;
 
     std::set<IndexT> image_ids;
     std::set<IndexT> remainer_ids;
@@ -154,7 +156,30 @@ public:
 
     Correspondence FindCorrespondence(IndexT image_id) const; 
 
-    EuclideanStructure CameraCalibration();
+    std::vector<Mat34> GetPMatrix() const {
+      std::vector<Mat34> res;
+      res.reserve(extrinsic_parameters.size());
+      for (auto&& [first, second] : extrinsic_parameters) {
+        res.push_back(second);
+      }
+      return res;
+    }
+
+    void ApplyQMatrix(const Eigen::Matrix4d& Q) {
+      // Compute the eigen value and eigen vector
+      // LDLT
+      Eigen::Matrix4d H  = Q.ldlt().matrixU();
+      auto track_ptrs = track_builder.AllTrack();
+
+      // update 
+      for (auto ptr : track_ptrs) {
+        Eigen::Vector4d temp = H.inverse() * ptr->X.homogeneous();
+        ptr->X = temp.hnormalized();
+      }
+
+    }
+
+    //EuclideanStructure CameraCalibration();
 
     IndexT NextImage() const;
     void UnRegister(IndexT image_id);
