@@ -38,6 +38,8 @@ void serialize(Archive& ar, Match& match) {
 }
 template<class Archive>
 void serialize(Archive& ar, SfMData& sfm_data) {
+    ar(cereal::make_nvp("Image_Width", sfm_data.image_width));
+    ar(cereal::make_nvp("Image_Height", sfm_data.image_height));
     ar(cereal::make_nvp("Views", sfm_data.views));
     ar(cereal::make_nvp("KeyPoint", sfm_data.key_points));
     ar(cereal::make_nvp("Descriptors", sfm_data.descriptors));

@@ -342,6 +342,130 @@ void ToPly(const std::vector<Point>& points, const std::string& output) {
   ofs.close();
 }
 
+
+struct MatchesWrap {
+  std::map<Pair, Matches> matches;
+  MatchesWrap(std::map<Pair, Matches> matches) : matches(matches) {}
+
+  bool Exists(Pair pair) const {
+    auto origin_iterator = matches.find(pair);
+    auto reverse_iterator = matches.find({pair.second, pair.first});
+
+    return origin_iterator != matches.end() || reverse_iterator != matches.end();
+  }
+
+  Matches at(Pair pair) const {
+
+    if (matches.find(pair) != matches.end()) {
+      return matches.at(pair);
+    }
+
+    if (matches.find({pair.second, pair.first}) != matches.end()) {
+      Matches res;
+      const Matches& reverse = matches.at({pair.second, pair.first});
+      for (Match match : reverse) {
+        std::swap(match.lhs_observation, match.rhs_observation);
+        std::swap(match.lhs_idx, match.rhs_idx);
+        res.push_back(match);
+      }
+      return res;
+    }
+
+    return Matches{};
+  }
+};
+
+struct TripleIndex {
+  IndexT I, J, K;
+};
+
+std::vector<TripleIndex> ListTriple(const SfMData& sfm_data) {
+  std::vector<TripleIndex> res;
+  std::vector<IndexT> total_index = sfm_data.views | Transform([](auto pair){return pair.first;}) | ToVector();
+  size_t max_size = total_index.size();
+
+  for(size_t i = 0; i < max_size; i++) {
+    for (size_t j = i + 1; j < max_size; j++) {
+      for (size_t k = j + 1; k < max_size; k++) {
+        res.push_back(TripleIndex{total_index[i], total_index[j], total_index[k]});
+      }
+    }
+  }
+  return res;
+}
+
+bool ValidateTriple(TripleIndex index,const MatchesWrap& match) {
+  return match.Exists({index.I, index.J}) && match.Exists({index.J, index.K}) && match.Exists({index.K, index.I});
+}
+struct TripleMatch {
+  IndexT I_idx;
+  Observation I_observation;
+  IndexT J_idx;
+  Observation J_observation;
+  IndexT K_idx;
+  Observation K_observation;
+};
+
+std::vector<TripleMatch> ConstructTripleMatch(TripleIndex index, const MatchesWrap& match) {
+
+  Matches I_J_matches = match.at({index.I, index.J});
+  Matches J_K_matches = match.at({index.J, index.K});
+  Matches K_I_matches = match.at({index.K, index.I});
+  
+  std::map<IndexT, Match> j_match_k;
+  std::map<IndexT, Match> k_match_i;
+  for (Match j_k : J_K_matches) {
+    j_match_k[j_k.lhs_idx] = j_k;
+  }
+
+  for (Match k_i : K_I_matches) {
+    k_match_i[k_i.lhs_idx] = k_i;
+  }
+  std::vector<TripleMatch> res;
+
+  for (Match i_j : I_J_matches) {
+    // J should has match to k
+    IndexT j_index = i_j.rhs_idx;
+    if (j_match_k.find(j_index) != j_match_k.end()) {
+      Match j_k = j_match_k[j_index];
+      IndexT k_index = j_k.rhs_idx;
+
+      if (k_match_i.find(k_index) != k_match_i.end()) {
+        Match k_i = k_match_i.at(k_index);
+        IndexT i_index = k_i.rhs_idx;
+
+        if (i_j.lhs_idx == i_index) {
+          TripleMatch m;
+          m.I_idx = i_index; m.J_idx = j_index; m.K_idx = k_index;
+          m.I_observation = i_j.lhs_observation;
+          m.J_observation = i_j.rhs_observation;
+          m.K_observation = j_k.rhs_observation;
+          res.push_back(m);
+        }
+      }
+    }
+
+
+
+  }
+  return res;
+}
+
+std::pair<TripleIndex, std::vector<TripleMatch>> FindInitialTriple(const SfMData& sfm_data) {
+  
+  MatchesWrap match(sfm_data.matches);
+
+  auto temp = ListTriple(sfm_data) | Transform([match](auto triple_index) { return std::pair<TripleIndex, std::vector<TripleMatch>>{triple_index, ConstructTripleMatch(triple_index, match)};}) | ToVector();
+  
+  std::sort(temp.begin(), temp.end(),[](auto lhs_pair, auto rhs_pair) { return lhs_pair.second.size() > rhs_pair.second.size();});
+  return temp[0];
+}
+
+std::ostream& operator<<(std::ostream& os, TripleIndex index) {
+  os << "[" << index.I << "," << index.J << "," << index.K << "]";
+  return os;
+}
+
 int main(int argc, char** argv) {
   if (argc != 2) {
     return 1;
@@ -355,7 +479,9 @@ int main(int argc, char** argv) {
     std::printf("Load Sfm Data From %s Fails\n", argv[1]);
     return 1;
   }
-  
+
+  auto triple_ = FindInitialTriple(sfm_data);
+  std::cout << triple_.first << " : " << triple_.second.size() << std::endl; 
   std::cout << sfm_data.matches.size() << "Match " << std::endl;
   std::map<Pair, Matches> filter_matches;
 
