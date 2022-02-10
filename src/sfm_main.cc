@@ -472,6 +472,16 @@ int main(int argc, char** argv) {
   auto triple_ = FindInitialTriple(sfm_data);
   std::cout << triple_.first << " : " << triple_.second.size() << std::endl; 
   std::cout << sfm_data.matches.size() << "Match " << std::endl;
+
+  LinearSolver trifocal_solver;
+  Trifocal trifocal;
+  trifocal_solver.Fit(triple_.second, trifocal);
+  Mat34 P1, P2, P3;
+  RecoveryCameraMatrix(trifocal, P1, P2, P3);
+  std::cout << "P1 : " << P1 << std::endl;
+  std::cout << "P2 : " << P2 << std::endl;
+  std::cout << "P3 : " << P3 << std::endl;
+
   std::map<Pair, Matches> filter_matches;
 
   for (auto&& [pair, matches] : sfm_data.matches) {
