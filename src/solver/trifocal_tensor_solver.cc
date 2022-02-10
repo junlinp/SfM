@@ -304,7 +304,6 @@ void BundleRefineSolver::Fit(const std::vector<DataPointType>& data_points,
   Eigen::Vector3d a1 = P2.col(0);
 
   model.lhs = a1 * b4.transpose() - a4 * b1.transpose();
-  ;
   model.middle = P2.col(1) * b4.transpose() - a4 * P3.col(1).transpose();
   model.rhs = P2.col(2) * b4.transpose() - a4 * P3.col(2).transpose();
 }

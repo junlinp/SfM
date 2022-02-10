@@ -473,7 +473,7 @@ int main(int argc, char** argv) {
   std::cout << triple_.first << " : " << triple_.second.size() << std::endl; 
   std::cout << sfm_data.matches.size() << "Match " << std::endl;
 
-  LinearSolver trifocal_solver;
+  BundleRefineSolver trifocal_solver;
   Trifocal trifocal;
   trifocal_solver.Fit(triple_.second, trifocal);
   Mat34 P1, P2, P3;
@@ -481,6 +481,16 @@ int main(int argc, char** argv) {
   std::cout << "P1 : " << P1 << std::endl;
   std::cout << "P2 : " << P2 << std::endl;
   std::cout << "P3 : " << P3 << std::endl;
+
+  Eigen::Matrix4d Q_ = IAC({P1, P2, P3}, sfm_data.image_width, sfm_data.image_height);
+
+  Eigen::Matrix3d K1 = P1 * Q_ * P1.transpose();
+  Eigen::Matrix3d K2 = P2 * Q_ * P2.transpose();
+  Eigen::Matrix3d K3 = P3 * Q_ * P3.transpose();
+
+  std::cout << "K1 : " << K1 << std::endl;
+  std::cout << "K2 : " << K2 << std::endl;
+  std::cout << "K3 : " << K3 << std::endl;
 
   std::map<Pair, Matches> filter_matches;
 
