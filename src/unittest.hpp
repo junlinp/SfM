@@ -360,18 +360,18 @@ struct Scene {
 
     LinearSolver solver;
     Trifocal model;
-    solver.Fit(data_points, model);
+    solver.Fit(data_points, &model);
 
     Trifocal model2;
     BundleRefineSolver bundle_solver;
-    bundle_solver.Fit(data_points, model2);
+    bundle_solver.Fit(data_points, &model2);
 
     // std::cout << model << std::endl;
 
     double error = 0.0;
     double geometry_error = 0.0;
     for (TripleMatch data_point : data_points) {
-      error += Error(data_point, model);
+      error += TrifocalError::Error(data_point, model);
       geometry_error += GeometryError(data_point, model2);
     }
     std::cout << "Geometry Error : " << geometry_error / data_points.size()

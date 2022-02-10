@@ -84,17 +84,6 @@ typename _Error = std::invoke_result_t<decltype(ErrorEstimator::Error), const Da
 class Ransac {
   static constexpr double chi_square_distribute[] = {
       0.0, 3.84, 5.99, 7.82, 9.49, 11.07, 12.59, 14.07, 15.51, 16.92, 18.31};
-/*
-  using DataPointType = typename Kernel::DataPointType;
-  static constexpr decltype(Kernel::MINIMUM_DATA_POINT) MINIMUM_DATA_POINT =
-      Kernel::MINIMUM_DATA_POINT;
-  static constexpr decltype(Kernel::MODEL_NUMBER) MODEL_FIT_NUMBER =
-      Kernel::MODEL_NUMBER;
-  static constexpr decltype(Kernel::MODEL_FREEDOM) MODEL_FREEDOM =
-      Kernel::MODEL_FREEDOM;
-  using MODEL_TYPE = typename Kernel::ModelType;
-*/
-
  public:
   static bool Inference(const std::vector<DataPointType>& samples,
                  std::vector<size_t>& inlier_indexs, MODEL_TYPE* result_models) {
@@ -117,7 +106,7 @@ class Ransac {
       // Compute model
       Kernel::Fit(temp_sample, models);
       double sigma = 1.0;
-      double threshold = chi_square_distribute[MODEL_FREEDOM] * sigma * sigma;
+      //double threshold = chi_square_distribute[MODEL_FREEDOM] * sigma * sigma;
       // Compute inliers
       for (MODEL_TYPE model_candicate : models) {
         std::vector<size_t> inliner_index;
@@ -128,10 +117,17 @@ class Ransac {
         for (int i = 0; i < samples.size(); i++) {
           if (inlier_set.find(i) == inlier_set.end()) {
             double error = ErrorEstimator::Error(samples[i], model_candicate);
+            if (!ErrorEstimator::RejectRegion(error)) {
+
+              inliner_index.push_back(i);
+              inlier_set.insert(i);
+            }
+            /*
             if (error < threshold) {
               inliner_index.push_back(i);
               inlier_set.insert(i);
             }
+            */
           }
         }
         // epsilon = 1 - (inliners) / total_size
@@ -145,7 +141,7 @@ class Ransac {
             (samples.size() - inliner_index.size()) * 1.0 / (samples.size());
        size_t temp_N =
             std::ceil(std::log(1 - 0.99) /
-                      std::log(1 - std::pow(1 - epsilon, MODEL_FREEDOM)));
+                      std::log(1 - std::pow(1 - epsilon, MINIMUM_DATA_POINT)));
         N = std::min(N, temp_N);
         if (inliner_index.size() > inlier_indexs.size()) {
           std::swap(inlier_indexs, inliner_index);

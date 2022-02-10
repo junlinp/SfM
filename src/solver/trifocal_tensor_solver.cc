@@ -12,7 +12,7 @@
 #include "solver/bundle_adjustment.hpp"
 #include "solver/triangular_solver.hpp"
 
-double Error(TripleMatch data_point, Trifocal model) {
+double TrifocalError::Error(TripleMatch data_point, Trifocal model) {
   Eigen::Vector3d x = data_point.I_observation.homogeneous();
   Eigen::Matrix3d lhs = SkewMatrix(data_point.J_observation.homogeneous());
   Eigen::Matrix3d rhs = SkewMatrix(data_point.K_observation.homogeneous());
@@ -20,9 +20,14 @@ double Error(TripleMatch data_point, Trifocal model) {
   Eigen::Matrix3d tri_tensor =
       x(0) * model.lhs + x(1) * model.middle + x(2) * model.rhs;
 
-  Eigen::Matrix3d result = lhs * tri_tensor * rhs;
-  // std::cout << "tri_tensor : " << tri_tensor << std::endl;
-  return std::sqrt((result.array().square()).sum());
+  Eigen::Matrix3d zeros = lhs * tri_tensor * rhs;
+  return (zeros.array().square()).sum();
+}
+
+bool TrifocalError::RejectRegion(double error) {
+  // how to define the error
+  // chi_square(9)
+  return error * 0.5 * 0.5 > 16.92;
 }
 
 std::ostream& operator<<(std::ostream& os, Trifocal tirfocal) {
@@ -213,7 +218,7 @@ struct EpsilonTensor {
 };
 }  // namespace
 void LinearSolver::Fit(const std::vector<DataPointType>& data_points,
-                       ModelType& model) {
+                       ModelType* model) {
   // assert(data_points.size() == 7);
   size_t n = data_points.size();
 
@@ -246,20 +251,22 @@ void LinearSolver::Fit(const std::vector<DataPointType>& data_points,
   Eigen::Matrix<double, 27, 1> t;
   LinearEquationWithNormalSolver(A, t);
   // convert t to model;
-  model.lhs =
+  model->lhs =
       Eigen::Map<Eigen::Matrix<double, 3, 3, Eigen::RowMajor>>(t.data());
-  model.middle =
+  model->middle =
       Eigen::Map<Eigen::Matrix<double, 3, 3, Eigen::RowMajor>>(t.data() + 9);
-  model.rhs =
+  model->rhs =
       Eigen::Map<Eigen::Matrix<double, 3, 3, Eigen::RowMajor>>(t.data() + 18);
 }
 
 void BundleRefineSolver::Fit(const std::vector<DataPointType>& data_points,
-                             ModelType& model) {
+                             ModelType* model) {
   Mat34 P1, P2, P3;
-  LinearSolver linear_solver;
-  linear_solver.Fit(data_points, model);
-  RecoveryCameraMatrix(model, P1, P2, P3);
+
+  LinearSolver::Fit(data_points, model);
+
+  RecoveryCameraMatrix(*model, P1, P2, P3);
+
   std::vector<std::vector<double>> points;
   std::vector<Mat34> p_matrixs = {P1, P2, P3};
 
@@ -303,7 +310,16 @@ void BundleRefineSolver::Fit(const std::vector<DataPointType>& data_points,
   Eigen::Vector3d a2 = P2.col(1);
   Eigen::Vector3d a1 = P2.col(0);
 
-  model.lhs = a1 * b4.transpose() - a4 * b1.transpose();
-  model.middle = P2.col(1) * b4.transpose() - a4 * P3.col(1).transpose();
-  model.rhs = P2.col(2) * b4.transpose() - a4 * P3.col(2).transpose();
+  model->lhs = a1 * b4.transpose() - a4 * b1.transpose();
+  model->middle = P2.col(1) * b4.transpose() - a4 * P3.col(1).transpose();
+  model->rhs = P2.col(2) * b4.transpose() - a4 * P3.col(2).transpose();
+
+  // checkout the Reprojective Error
+  double error = 0.0;
+  for (TripleMatch data_point : data_points) {
+    error = GeometryError(data_point, *model);
+  }
+
+  error /= 1.0 * data_points.size();
+  std::cout << "Bundle Trifocal average Error : " << error << std::endl;
 }
