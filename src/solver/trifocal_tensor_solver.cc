@@ -12,10 +12,10 @@
 #include "solver/bundle_adjustment.hpp"
 #include "solver/triangular_solver.hpp"
 
-double Error(TriPair data_point, Trifocal model) {
-  Eigen::Vector3d x = data_point.lhs;
-  Eigen::Matrix3d lhs = SkewMatrix(data_point.middle);
-  Eigen::Matrix3d rhs = SkewMatrix(data_point.rhs);
+double Error(TripleMatch data_point, Trifocal model) {
+  Eigen::Vector3d x = data_point.I_observation.homogeneous();
+  Eigen::Matrix3d lhs = SkewMatrix(data_point.J_observation.homogeneous());
+  Eigen::Matrix3d rhs = SkewMatrix(data_point.K_observation.homogeneous());
 
   Eigen::Matrix3d tri_tensor =
       x(0) * model.lhs + x(1) * model.middle + x(2) * model.rhs;
@@ -32,13 +32,13 @@ std::ostream& operator<<(std::ostream& os, Trifocal tirfocal) {
   return os;
 }
 
-double GeometryError(const TriPair data_point, Trifocal& model) {
+double GeometryError(const TripleMatch data_point, Trifocal& model) {
   Mat34 P1, P2, P3;
   RecoveryCameraMatrix(model, P1, P2, P3);
 
   std::vector<Mat34> p_matrixs = {P1, P2, P3};
-  std::vector<Eigen::Vector3d> obs = {data_point.lhs, data_point.middle,
-                                             data_point.rhs};
+  std::vector<Eigen::Vector3d> obs = {data_point.I_observation.homogeneous(), data_point.J_observation.homogeneous(),
+                                             data_point.K_observation.homogeneous()};
 
   Eigen::Vector4d X;
   BundleAdjustmentTriangular(p_matrixs, obs, X);
@@ -63,8 +63,8 @@ double GeometryError(const TriPair data_point, Trifocal& model) {
   Eigen::Vector3d p1 = P1 * X;
   p1 = p1 / p1(2);
   std::cout << p1 << std::endl;
-  std::cout << data_point.lhs << std::endl;
-  std::cout << "p1 - v1 : " << (data_point.lhs - p1).norm() << std::endl;
+  std::cout << data_point.I_observation << std::endl;
+  std::cout << "p1 - v1 : " << (data_point.I_observation.homogeneous()- p1).norm() << std::endl;
   return cost;
 }
 
@@ -140,7 +140,7 @@ void RecoveryCameraMatrix(const Trifocal& trifocal, Mat34& P1, Mat34& P2, Mat34&
   std::cout << "Recovery end" << std::endl;
 }
 
-void BundleRecovertyCameraMatrix(const std::vector<TriPair>& data_points,
+void BundleRecovertyCameraMatrix(const std::vector<TripleMatch>& data_points,
                                  const Trifocal& trifocal, const Mat34& P1,
                                  const Mat34& P2, Mat34& P3) {
   Mat34 P1_, P2_, P3_;
@@ -158,25 +158,25 @@ void BundleRecovertyCameraMatrix(const std::vector<TriPair>& data_points,
   std::vector<std::vector<double>> points(data_points.size(), std::vector<double>(3, 0));
   ceres::Problem probelm;
   for (int i = 0; i < data_points.size(); i++) {
-      const TriPair& data_point = data_points[i]; 
+      const TripleMatch& data_point = data_points[i]; 
       Eigen::Vector4d X;
-      DLT({P1, P2, P3}, {data_point.lhs, data_point.middle, data_point.rhs}, X);
+      DLT({P1, P2, P3}, {data_point.I_observation.homogeneous(), data_point.J_observation.homogeneous(), data_point.K_observation.homogeneous()}, X);
       points[i][0] = X(0) / X(3);
       points[i][1] = X(1) / X(3);
       points[i][2] = X(2) / X(3);
 
       ceres::CostFunction* cost_function_p1 = new ceres::AutoDiffCostFunction<ConstCameraMatrixCostFunctor, 2, 3>(
-          new ConstCameraMatrixCostFunctor(P1, data_point.lhs)
+          new ConstCameraMatrixCostFunctor(P1, data_point.I_observation.homogeneous())
       );
       probelm.AddResidualBlock(cost_function_p1, nullptr, points[i].data());
 
       ceres::CostFunction* cost_function_p2 = new ceres::AutoDiffCostFunction<ConstCameraMatrixCostFunctor, 2, 3>(
-          new ConstCameraMatrixCostFunctor(P2, data_point.middle)
+          new ConstCameraMatrixCostFunctor(P2, data_point.J_observation.homogeneous())
       );
       probelm.AddResidualBlock(cost_function_p2, nullptr, points[i].data());
 
       ceres::CostFunction* cost_function_p3 = new ceres::AutoDiffCostFunction<CostFunctor, 2, 12, 3>(
-          new CostFunctor(data_point.rhs)
+          new CostFunctor(data_point.K_observation.homogeneous())
       );
 
       probelm.AddResidualBlock(cost_function_p3, nullptr, P3.data(), points[i].data());
@@ -222,9 +222,9 @@ void LinearSolver::Fit(const std::vector<DataPointType>& data_points,
   A.setZero();
   int index = 0;
   for (const DataPointType& data_point : data_points) {
-    Eigen::Vector3d x = data_point.lhs;
-    Eigen::Vector3d x_dot = data_point.middle;
-    Eigen::Vector3d x_dot_dot = data_point.rhs;
+    Eigen::Vector3d x = data_point.I_observation.homogeneous();
+    Eigen::Vector3d x_dot = data_point.J_observation.homogeneous();
+    Eigen::Vector3d x_dot_dot = data_point.K_observation.homogeneous();
     Eigen::Matrix3d L = SkewMatrix(x_dot);
     Eigen::Matrix3d R = SkewMatrix(x_dot_dot);
     for (int r = 0; r < 2; r++) {
@@ -266,24 +266,24 @@ void BundleRefineSolver::Fit(const std::vector<DataPointType>& data_points,
   ceres::Problem problem;
   for (const DataPointType& data_point : data_points) {
     std::vector<Eigen::Vector3d> obs = {
-        data_point.lhs, data_point.middle, data_point.rhs};
+        data_point.I_observation.homogeneous(), data_point.J_observation.homogeneous(), data_point.K_observation.homogeneous()};
     Eigen::Vector4d X;
     DLT(p_matrixs, obs, X);
     points.push_back({X(0) / X(3), X(1) / X(3), X(2) / X(3)});
 
     ceres::CostFunction* cost_function_p1 =
         new ceres::AutoDiffCostFunction<ConstCameraMatrixCostFunctor, 2, 3>(
-            new ConstCameraMatrixCostFunctor(P1, data_point.lhs));
+            new ConstCameraMatrixCostFunctor(P1, data_point.I_observation.homogeneous()));
     problem.AddResidualBlock(cost_function_p1, nullptr, points.back().data());
 
     ceres::CostFunction* cost_function_p2 =
         new ceres::AutoDiffCostFunction<CostFunctor, 2, 12, 3>(
-            new CostFunctor(data_point.middle));
+            new CostFunctor(data_point.J_observation.homogeneous()));
     problem.AddResidualBlock(cost_function_p2, nullptr, P2.data(),
                              points.back().data());
     ceres::CostFunction* cost_function_p3 =
         new ceres::AutoDiffCostFunction<CostFunctor, 2, 12, 3>(
-            new CostFunctor(data_point.rhs));
+            new CostFunctor(data_point.K_observation.homogeneous()));
     problem.AddResidualBlock(cost_function_p3, nullptr, P3.data(),
                              points.back().data());
   }

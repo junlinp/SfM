@@ -375,9 +375,6 @@ struct MatchesWrap {
   }
 };
 
-struct TripleIndex {
-  IndexT I, J, K;
-};
 
 std::vector<TripleIndex> ListTriple(const SfMData& sfm_data) {
   std::vector<TripleIndex> res;
@@ -397,14 +394,6 @@ std::vector<TripleIndex> ListTriple(const SfMData& sfm_data) {
 bool ValidateTriple(TripleIndex index,const MatchesWrap& match) {
   return match.Exists({index.I, index.J}) && match.Exists({index.J, index.K}) && match.Exists({index.K, index.I});
 }
-struct TripleMatch {
-  IndexT I_idx;
-  Observation I_observation;
-  IndexT J_idx;
-  Observation J_observation;
-  IndexT K_idx;
-  Observation K_observation;
-};
 
 std::vector<TripleMatch> ConstructTripleMatch(TripleIndex index, const MatchesWrap& match) {
 

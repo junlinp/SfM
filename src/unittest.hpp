@@ -352,9 +352,9 @@ struct Scene {
   }
 
   double TrifocalError() {
-    std::vector<TriPair> data_points;
+    std::vector<TripleMatch> data_points;
     for (int i = 0; i < 7; i++) {
-      TriPair t = {observations[0][i], observations[1][i], observations[2][i]};
+      TripleMatch t = {0, observations[0][i], 1, observations[1][i], 2, observations[2][i]};
       data_points.push_back(t);
     }
 
@@ -370,7 +370,7 @@ struct Scene {
 
     double error = 0.0;
     double geometry_error = 0.0;
-    for (TriPair data_point : data_points) {
+    for (TripleMatch data_point : data_points) {
       error += Error(data_point, model);
       geometry_error += GeometryError(data_point, model2);
     }

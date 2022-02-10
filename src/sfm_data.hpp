@@ -8,8 +8,7 @@
 #include "descriptor.hpp"
 #include "keypoint.hpp"
 #include "eigen_alias_types.hpp"
-
-using IndexT = int64_t;
+#include "types_define.hpp"
 
 struct View {
     std::string image_path;
