@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(SfM)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(OpenCV REQUIRED)
 find_package(Ceres REQUIRED)
@@ -58,3 +59,4 @@ target_link_libraries(DrawMatchFilter_main PUBLIC SfMData ${OpenCV_LIBS} Solver)
 
 add_executable(Unittest src/unittest.cc)
 target_link_libraries(Unittest PUBLIC Solver ${GTEST_LIBRARIES})
+add_test(Name Unittest COMMAND ${CMAKE_CURRENT_BINARY_DIR}/Unittest)

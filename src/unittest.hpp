@@ -353,14 +353,17 @@ struct Scene {
 
   double TrifocalError() {
     std::vector<TripleMatch> data_points;
-    for (int i = 0; i < 7; i++) {
-      TripleMatch t = {0, observations[0][i], 1, observations[1][i], 2, observations[2][i]};
+    size_t point_size = points.size();
+    for (int i = 0; i < point_size; i++) {
+      TripleMatch t = {0, noised_observations[0][i], 1, noised_observations[1][i], 2, noised_observations[2][i]};
       data_points.push_back(t);
     }
 
-    LinearSolver solver;
     Trifocal model;
+    LinearSolver solver;
     solver.Fit(data_points, &model);
+    AlgebraMinimumSolver algebra_solver;
+    algebra_solver.Fit(data_points, &model);
 
     Trifocal model2;
     BundleRefineSolver bundle_solver;
@@ -371,9 +374,10 @@ struct Scene {
     double error = 0.0;
     double geometry_error = 0.0;
     for (TripleMatch data_point : data_points) {
-      error += TrifocalError::Error(data_point, model);
+      error += TrifocalSamponError::Error(data_point, model);
       geometry_error += GeometryError(data_point, model2);
     }
+    std::cout << "Trifocal Error : " << error / data_points.size() << std::endl;
     std::cout << "Geometry Error : " << geometry_error / data_points.size()
               << std::endl;
     return error / data_points.size();
@@ -407,7 +411,7 @@ struct Scene {
     std::cout << "K * K^T : " << true_K * true_K.transpose() << std::endl;
   }
 };
-
+/*
 TEST(Fundamental, Performance) {
   double res = 0.0;
   size_t test_case = 1;
@@ -422,7 +426,7 @@ TEST(Fundamental, Performance) {
   }
   std::cout << res / test_case << std::endl;
 }
-
+*/
 TEST(Triangular, Performance_Two_Camera) {
   Scene scene(2, 2);
   std::cout << scene.TriangularError(BundleAdjustmentTriangular) << std::endl;

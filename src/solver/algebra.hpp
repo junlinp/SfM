@@ -19,10 +19,6 @@ Eigen::VectorXd NullSpace(const Eigen::Transpose<T>& m) {
     return NullSpace<T>(temp);
 }
 
-//Eigen::Vector3d NullSpace(const Eigen::Matrix3d& m) {
-//  Eigen::JacobiSVD svd(m, Eigen::ComputeFullV);
-//  return svd.matrixV().col(2);
-//}
 template<class T>
 Eigen::Matrix3d SkewMatrix(const T& v) {
     Eigen::Matrix3d res;
@@ -32,6 +28,9 @@ Eigen::Matrix3d SkewMatrix(const T& v) {
     return res;
 }
 
+
+// solute min |Ax| with |x| = 1
+// where symbol |*| means L2-norm
 template<typename DerivedMatrix, typename DerivedVector>
 void LinearEquationWithNormalSolver(const DerivedMatrix& A, DerivedVector& t) {
     Eigen::JacobiSVD svd(A, Eigen::ComputeFullV);
@@ -39,4 +38,26 @@ void LinearEquationWithNormalSolver(const DerivedMatrix& A, DerivedVector& t) {
     std::cout << "Least Singular : " << singular(singular.size() - 1) << std::endl;
     t = svd.matrixV().col(singular.size() - 1);
 }
+
+template<typename ConstraintEvaluator, typename ConstraintJacobianEvaluator>
+struct SampsonBase {
+    template<typename Model, typename DataPoint>
+    static double Error(DataPoint data_point, const Model& model) {
+        auto epsilon = ConstraintEvaluator::Evaluate(data_point, model);
+        auto jacobian = ConstraintJacobianEvaluator::Evaluate(data_point, model);
+        Eigen::MatrixXd JJT = jacobian * jacobian.transpose();
+        return epsilon.dot( JJT.fullPivHouseholderQr().solve(epsilon));
+    }
+};
+
+struct EpsilonTensor {
+static constexpr double data[3][3][3] = {
+{{0.0 , 0.0, 0.0}, {0.0, 0.0, 1}, {0.0, -1, 0.0}},
+{{0.0, 0.0, -1}, {0.0, 0.0, 0.0}, {1, 0.0, 0.0}},
+{{0.0, 1, 0.0}, {-1, 0.0, 0.0}, {0.0, 0.0, 0.0}}
+};
+    static double at(int i, int j, int k) {
+        return data[i][j][k];
+    }
+};
 #endif  // SRC_SOLVER_ALGEBRA_HPP_

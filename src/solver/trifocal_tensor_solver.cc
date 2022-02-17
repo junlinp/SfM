@@ -11,6 +11,7 @@
 #include "eigen_alias_types.hpp"
 #include "solver/bundle_adjustment.hpp"
 #include "solver/triangular_solver.hpp"
+#include "algebra.hpp"
 
 double TrifocalError::Error(TripleMatch data_point, Trifocal model) {
   Eigen::Vector3d x = data_point.I_observation.homogeneous();
@@ -18,7 +19,7 @@ double TrifocalError::Error(TripleMatch data_point, Trifocal model) {
   Eigen::Matrix3d rhs = SkewMatrix(data_point.K_observation.homogeneous());
 
   Eigen::Matrix3d tri_tensor =
-      x(0) * model.lhs + x(1) * model.middle + x(2) * model.rhs;
+   x(0) * model.lhs + x(1) * model.middle + x(2) * model.rhs;
 
   Eigen::Matrix3d zeros = lhs * tri_tensor * rhs;
   return (zeros.array().square()).sum();
@@ -72,6 +73,96 @@ double GeometryError(const TripleMatch data_point, Trifocal& model) {
   std::cout << "p1 - v1 : " << (data_point.I_observation.homogeneous()- p1).norm() << std::endl;
   return cost;
 }
+
+Eigen::VectorXd TrifocalSamponErrorEvaluator::Evaluate(const TripleMatch& data_point, const Trifocal& model) {
+  Eigen::VectorXd res(4);
+
+    Eigen::Vector3d x = data_point.I_observation.homogeneous();
+    Eigen::Vector3d x_dot = data_point.J_observation.homogeneous();
+    Eigen::Vector3d x_dot_dot = data_point.J_observation.homogeneous();
+    Mat33 trifocal[3] = {model.lhs, model.middle, model.rhs};
+    res.setZero();
+
+  // it's too verbose and can be simplified?
+
+  for (int s = 0; s < 2; s++) {
+    for (int t = 0; t < 2; t++) {
+      for (int i = 0; i < 3;i++) {
+        for (int j = 0; j < 3; j++) {
+          for (int k = 0; k < 3; k++) {
+            for (int q = 0; q < 3; q++) {
+              for (int r = 0; r < 3; r++) {
+                res(s * 2 + t) += x(i) * x_dot(j) * x_dot_dot(k) * EpsilonTensor::at(j, q, s) * EpsilonTensor::at(k, r, t) * trifocal[i](q, r);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return res;
+}
+
+  Eigen::MatrixXd TrifocalSamponErrorEvaluator::Jacobian(const TripleMatch& data_point, const Trifocal& model) {
+    Eigen::MatrixXd res(4, 6);
+    res.setZero();
+
+    Eigen::Vector3d x = data_point.I_observation.homogeneous();
+    Eigen::Vector3d x_dot = data_point.J_observation.homogeneous();
+    Eigen::Vector3d x_dot_dot = data_point.J_observation.homogeneous();
+    Mat33 trifocal[3] = {model.lhs, model.middle, model.rhs};
+
+    for (int s = 0; s < 2; s++) {
+      for (int t = 0; t < 2; t++) {
+        for (int i_index = 0; i_index < 2; i_index++) {
+            for (int j = 0; j < 3; j++) {
+              for (int k = 0; k < 3; k++) {
+                for (int q = 0; q < 3; q++) {
+                  for (int r = 0; r < 3; r++) {
+                    res(s * 2 + t, i_index) += x_dot(j) * x_dot_dot(k) * EpsilonTensor::at(j, q, s) * EpsilonTensor::at(k, r, t) * trifocal[i_index](q, r);
+                  }
+                }
+              }
+            }
+        }
+      }
+    }
+
+    for (int s = 0; s < 2; s++) {
+      for (int t = 0; t < 2; t++) {
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 2; j++) {
+              for (int k = 0; k < 3; k++) {
+                for (int q = 0; q < 3; q++) {
+                  for (int r = 0; r < 3; r++) {
+                    res(s * 2 + t, 2 + j) += x(i) * x_dot_dot(k) * EpsilonTensor::at(j, q, s) * EpsilonTensor::at(k, r, t) * trifocal[i](q, r);
+                  }
+                }
+              }
+            }
+        }
+      }
+    }
+
+    for (int s = 0; s < 2; s++) {
+      for (int t = 0; t < 2; t++) {
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+              for (int k = 0; k < 2; k++) {
+                for (int q = 0; q < 3; q++) {
+                  for (int r = 0; r < 3; r++) {
+                    res(s * 2 + t, 4 + k) += x(i) * x_dot(j) * EpsilonTensor::at(j, q, s) * EpsilonTensor::at(k, r, t) * trifocal[i](q, r);
+                  }
+                }
+              }
+            }
+        }
+      }
+    }
+    return res;
+
+
+  }
 
 void RecoveryCameraMatrix(const Trifocal& trifocal, Mat34& P1, Mat34& P2, Mat34& P3) {
   P1 << 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0;
@@ -217,14 +308,9 @@ struct EpsilonTensor {
   }
 };
 }  // namespace
-void LinearSolver::Fit(const std::vector<DataPointType>& data_points,
-                       ModelType* model) {
-  // assert(data_points.size() == 7);
-  size_t n = data_points.size();
 
-  // Eigen::Matrix<double, 4 * n, 27> A;
-  Eigen::MatrixXd A(4 * n, 27);
-  A.setZero();
+template<typename DataPointType>
+void ConstructCoeffientMatrix(const std::vector<DataPointType>& data_points, Eigen::MatrixXd& coeffient) {
   int index = 0;
   for (const DataPointType& data_point : data_points) {
     Eigen::Vector3d x = data_point.I_observation.homogeneous();
@@ -238,7 +324,7 @@ void LinearSolver::Fit(const std::vector<DataPointType>& data_points,
           for (int j = 0; j < 3; j++) {
             for (int k = 0; k < 3; k++) {
               int cur = i * 9 + j * 3 + k;
-              A(index, cur) = L(r, j) * R(k, s) * x(i);
+              coeffient(index, cur) = L(r, j) * R(k, s) * x(i);
             }
           }
         }
@@ -246,7 +332,17 @@ void LinearSolver::Fit(const std::vector<DataPointType>& data_points,
       }
     }
   }
-  assert(index == 4 * n);
+ 
+}
+void LinearSolver::Fit(const std::vector<DataPointType>& data_points,
+                       ModelType* model) {
+  // assert(data_points.size() == 7);
+  size_t n = data_points.size();
+
+  // T_i^(jk) expand to a vector(i * 9 + j * 3 + k)
+  Eigen::MatrixXd A(4 * n, 27);
+  A.setZero();
+  ConstructCoeffientMatrix(data_points, A);
 
   Eigen::Matrix<double, 27, 1> t;
   LinearEquationWithNormalSolver(A, t);
@@ -257,6 +353,82 @@ void LinearSolver::Fit(const std::vector<DataPointType>& data_points,
       Eigen::Map<Eigen::Matrix<double, 3, 3, Eigen::RowMajor>>(t.data() + 9);
   model->rhs =
       Eigen::Map<Eigen::Matrix<double, 3, 3, Eigen::RowMajor>>(t.data() + 18);
+}
+
+
+void TrifocalVMatrix(Trifocal tri_focal, Mat33 & V) {
+  Eigen::Vector3d v1, v2, v3;
+  LinearEquationWithNormalSolver(tri_focal.lhs, v1);
+  LinearEquationWithNormalSolver(tri_focal.middle, v2);
+  LinearEquationWithNormalSolver(tri_focal.rhs, v3);
+  V << v1.transpose(), v2.transpose(), v3.transpose();
+}
+
+// bibliography
+// Multiple View Geometry in Compute Vision algorithm 16.2
+void AlgebraMinimumSolver::Fit(const std::vector<DataPointType>& data_points, ModelType* model) {
+  // there is a initialized value for estimate a solution menting the inner constrainted of trifocal
+  Mat33 V, V_transpose;
+  TrifocalVMatrix(*model, V);
+  ModelType model_transpose;
+  model_transpose.lhs = model->lhs.transpose();
+  model_transpose.middle = model->middle.transpose();
+  model_transpose.rhs = model->rhs.transpose();
+  TrifocalVMatrix(model_transpose, V_transpose);
+
+  Eigen::Vector3d epipolar_middle, epipolar_rhs;
+  LinearEquationWithNormalSolver(V, epipolar_rhs);
+  LinearEquationWithNormalSolver(V_transpose, epipolar_middle);
+
+  Eigen::Matrix<double, 27, 18> E;
+  E.setZero();
+
+  // a = [ a_1, a_2, a_3, b_1, b_2, b_3]
+  // 
+
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j ++) {
+      for (int k = 0; k < 3; k++) {
+        E(i * 9 + j * 3 + k, i * 3 + j) = epipolar_rhs(k);
+        E(i * 9 + j * 3 + k, 9 + i * 3 + j) = epipolar_middle(j);
+      }
+    }
+  }
+  size_t n = data_points.size();
+  Eigen::MatrixXd A(4 * n, 27);
+  ConstructCoeffientMatrix(data_points, A);
+
+  // Minimum |AEa| with |Ea| = 1
+  // let x = Ea
+  // TODO (junlinp@qq.com): it can simplify by hand.
+
+  auto svd_E = E.bdcSvd(Eigen::ComputeFullU| Eigen::ComputeFullV);
+  Eigen::Matrix<double, 27, 27> U_E = svd_E.matrixU();
+  Eigen::Matrix<double, 27, 18> D_E;
+  D_E.setZero();
+  D_E.block(0, 0, 18, 18) = svd_E.singularValues().asDiagonal();
+
+  auto V_E = svd_E.matrixV();
+
+  Eigen::Matrix<double, 27, 27> V_T_A = A.bdcSvd(Eigen::ComputeFullV).matrixV().transpose();
+  Eigen::Matrix<double, 27, 27> R = V_T_A * U_E;
+  // the last row of R and the last col of R transpose
+  // we have (0, 0, ...., 0, 1) ^T = R^T * x_dot
+  Eigen::VectorXd x_dot = R.row(26);
+
+
+  // Debug
+  Eigen::Matrix<double, 18, 1> a = V_E * D_E.bdcSvd(Eigen::ComputeFullU | Eigen::ComputeFullV).solve(x_dot);
+
+  Eigen::Matrix<double, 27, 1> t = E * a;
+
+  using RowMajorMatrix = Eigen::Matrix<double, 3, 3, Eigen::RowMajor>;
+  using MapRowMajorMatrix = Eigen::Map<RowMajorMatrix>;
+  model->lhs = MapRowMajorMatrix(t.data());
+  model->middle = MapRowMajorMatrix(t.data() + 9);
+  model->rhs = MapRowMajorMatrix(t.data() + 18);
+  // we will not iterate this solution again
+  // because we will do this process at the later step.
 }
 
 void BundleRefineSolver::Fit(const std::vector<DataPointType>& data_points,

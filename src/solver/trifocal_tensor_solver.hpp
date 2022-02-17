@@ -4,7 +4,7 @@
 #include <vector>
 #include "trifocal_tensor.hpp"
 #include "ransac.hpp"
-
+#include "algebra.hpp"
 
 
 
@@ -19,6 +19,14 @@ void BundleRecovertyCameraMatrix(const std::vector<TripleMatch>& data_points,
                                  const Trifocal& trifocal, const Mat34& P1,
                                  const Mat34& P2, Mat34& P3);
 
+struct TrifocalSamponErrorEvaluator {
+  static Eigen::VectorXd Evaluate(const TripleMatch& data_point, const Trifocal& model);
+  static Eigen::MatrixXd Jacobian(const TripleMatch& data_point, const Trifocal& model);
+};
+
+using TrifocalSamponError = SampsonBase<TrifocalSamponErrorEvaluator,
+                              TrifocalSamponErrorEvaluator>;
+
 struct TrifocalError {
 
   // Compute the error of a data point according to the model
@@ -28,11 +36,23 @@ struct TrifocalError {
   static bool RejectRegion(double error);
 };
 
-class LinearSolver {
- public:
- static const size_t MINIMUM_DATA_POINT = 7;
+class Typedefine {
+public:
+  static const size_t MINIMUM_DATA_POINT = 7;
   using DataPointType = TripleMatch;
   using ModelType = Trifocal;
+};
+
+class LinearSolver : public Typedefine {
+ public:
+ //static const size_t MINIMUM_DATA_POINT = 7;
+  //using DataPointType = TripleMatch;
+  //using ModelType = Trifocal;
+  static void Fit(const std::vector<DataPointType>& data_points, ModelType* model);
+};
+
+class AlgebraMinimumSolver : public Typedefine {
+public:
   static void Fit(const std::vector<DataPointType>& data_points, ModelType* model);
 };
 

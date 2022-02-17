@@ -14,6 +14,7 @@
 #include "solver/triangular_solver.hpp"
 #include "solver/trifocal_tensor_solver.hpp"
 #include "solver/resection_solver.hpp"
+
 bool ComputeFundamentalMatrix(const std::vector<Observation>& lhs_keypoint,
                               const std::vector<Observation>& rhs_keypoint,
                               Mat33* fundamental_matrix,
@@ -455,45 +456,9 @@ std::ostream& operator<<(std::ostream& os, TripleIndex index) {
   return os;
 }
 
-int main(int argc, char** argv) {
-  if (argc != 2) {
-    return 1;
-  }
-
-  SfMData sfm_data;
-  bool b_load = Load(sfm_data, argv[1]);
-  if (b_load) {
-    std::printf("Load Sfm Data Finish\n");
-  } else {
-    std::printf("Load Sfm Data From %s Fails\n", argv[1]);
-    return 1;
-  }
-
-  auto triple_ = FindInitialTriple(sfm_data);
-  std::cout << triple_.first << " : " << triple_.second.size() << std::endl; 
+void GeometryFilter(SfMData& sfm_data) {
   std::cout << sfm_data.matches.size() << "Match " << std::endl;
-
-  RansacTrifocalSolver trifocal_solver;
-  Trifocal trifocal;
-  trifocal_solver.Fit(triple_.second, trifocal);
-  Mat34 P1, P2, P3;
-  RecoveryCameraMatrix(trifocal, P1, P2, P3);
-  std::cout << "P1 : " << P1 << std::endl;
-  std::cout << "P2 : " << P2 << std::endl;
-  std::cout << "P3 : " << P3 << std::endl;
-
-  Eigen::Matrix4d Q_ = IAC({P1, P2, P3}, sfm_data.image_width, sfm_data.image_height);
-  std::cout << "Q_ svd : " << Q_.bdcSvd().singularValues() << std::endl;
-  Eigen::Matrix3d K1 = P1 * Q_ * P1.transpose();
-  Eigen::Matrix3d K2 = P2 * Q_ * P2.transpose();
-  Eigen::Matrix3d K3 = P3 * Q_ * P3.transpose();
-
-  std::cout << "K1 : " << K1 << std::endl;
-  std::cout << "K2 : " << K2 << std::endl;
-  std::cout << "K3 : " << K3 << std::endl;
-
   std::map<Pair, Matches> filter_matches;
-
   for (auto&& [pair, matches] : sfm_data.matches) {
     std::vector<Observation> lhs, rhs;
     for (Match match : matches) {
@@ -515,8 +480,48 @@ int main(int argc, char** argv) {
   }
 
   sfm_data.matches = filter_matches;
+}
+
+int main(int argc, char** argv) {
+  if (argc != 2) {
+    return 1;
+  }
+
+  SfMData sfm_data;
+  bool b_load = Load(sfm_data, argv[1]);
+  if (b_load) {
+    std::printf("Load Sfm Data Finish\n");
+  } else {
+    std::printf("Load Sfm Data From %s Fails\n", argv[1]);
+    return 1;
+  }
+
+  GeometryFilter(sfm_data);
+
+  auto triple_ = FindInitialTriple(sfm_data);
+  std::cout << triple_.first << " : " << triple_.second.size() << std::endl; 
 
   std::cout << "After Filter : " << sfm_data.matches.size() << "Match " << std::endl;
+
+  RansacTrifocalSolver trifocal_solver;
+  Trifocal trifocal;
+  trifocal_solver.Fit(triple_.second, trifocal);
+  Mat34 P1, P2, P3;
+  RecoveryCameraMatrix(trifocal, P1, P2, P3);
+  std::cout << "P1 : " << P1 << std::endl;
+  std::cout << "P2 : " << P2 << std::endl;
+  std::cout << "P3 : " << P3 << std::endl;
+
+  Eigen::Matrix4d Q_ = IAC({P1, P2, P3}, sfm_data.image_width, sfm_data.image_height);
+  std::cout << "Q_ svd : " << Q_.bdcSvd().singularValues() << std::endl;
+  Eigen::Matrix3d K1 = P1 * Q_ * P1.transpose();
+  Eigen::Matrix3d K2 = P2 * Q_ * P2.transpose();
+  Eigen::Matrix3d K3 = P3 * Q_ * P3.transpose();
+
+  std::cout << "K1 : " << K1 << std::endl;
+  std::cout << "K2 : " << K2 << std::endl;
+  std::cout << "K3 : " << K3 << std::endl;
+
 
   // TODO (junlinp@qq.com):
   // print out the scene graph status whether the matches
@@ -603,6 +608,7 @@ int main(int argc, char** argv) {
 
 
   // bundle adjustment the parameters rotation and translation
+
 
   Save(sfm_data, argv[1]);
 
