@@ -6,6 +6,7 @@
 #define SFM_SRC_UNITTEST_HPP_
 #include <random>
 #include <vector>
+#include <cmath>
 
 #include "Eigen/Dense"
 #include "gtest/gtest.h"
@@ -350,6 +351,17 @@ struct Scene {
 
     return error / noised_observations[0].size();
   }
+template<typename T>
+  auto TrifocalConstraint(T* I_observation, T* J_observation, T* K_observation, Trifocal model) {
+    T i_ob[3] = {I_observation[0], I_observation[1], T(1.0)};
+    T j_ob[3] = {J_observation[0], J_observation[1], T(1.0)};
+    T k_ob[3] = {K_observation[0], K_observation[1], T(1.0)};
+
+    auto x_dot = SkewMatrix(j_ob);
+    auto x_dot_dot = SkewMatrix(k_ob);
+    auto temp = i_ob[0] * model.lhs + i_ob[1] * model.middle + i_ob[2] * model.rhs;
+    return x_dot * temp * x_dot_dot;
+  }
 
   double TrifocalError() {
     std::vector<TripleMatch> data_points;
@@ -374,8 +386,9 @@ struct Scene {
     double error = 0.0;
     double geometry_error = 0.0;
     for (TripleMatch data_point : data_points) {
-      error += TrifocalSamponError::Error(data_point, model);
-      geometry_error += GeometryError(data_point, model2);
+      error += TrifocalSampsonError::Error(data_point, model);
+      std::cout << "Error : " << error << std::endl;
+      //geometry_error += GeometryError(data_point, model2);
     }
     std::cout << "Trifocal Error : " << error / data_points.size() << std::endl;
     std::cout << "Geometry Error : " << geometry_error / data_points.size()
@@ -444,9 +457,9 @@ TEST(Triangular, Performance_Four_Camera) {
   std::cout << scene.TriangularError(BundleAdjustmentTriangular) << std::endl;
   std::cout << scene.TriangularError(DLT) << std::endl;
 }
-
+/*
 TEST(Trifocal, Test) {
-  Scene scene(3, 7);
+  Scene scene(3, 7, 1.5);
 
   std::cout << scene.TrifocalError() << std::endl;
 }
@@ -456,4 +469,5 @@ TEST(Self_Calibration, Correct) {
 
   scene.SelfCalibration();
 }
+*/
 #endif  // SFM_SRC_UNITTEST_HPP_

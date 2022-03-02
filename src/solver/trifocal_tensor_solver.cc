@@ -8,11 +8,12 @@
 #include "ceres/autodiff_cost_function.h"
 #include "ceres/problem.h"
 #include "ceres/solver.h"
+#include "ceres/jet.h"
 #include "eigen_alias_types.hpp"
 #include "solver/bundle_adjustment.hpp"
 #include "solver/triangular_solver.hpp"
 #include "algebra.hpp"
-
+/*
 double TrifocalError::Error(TripleMatch data_point, Trifocal model) {
   Eigen::Vector3d x = data_point.I_observation.homogeneous();
   Eigen::Matrix3d lhs = SkewMatrix(data_point.J_observation.homogeneous());
@@ -30,6 +31,7 @@ bool TrifocalError::RejectRegion(double error) {
   // chi_square(9)
   return error * 0.5 * 0.5 > 16.92;
 }
+*/
 
 std::ostream& operator<<(std::ostream& os, Trifocal tirfocal) {
   os << "Lhs : " << tirfocal.lhs << std::endl
@@ -60,7 +62,7 @@ double GeometryError(const TripleMatch data_point, Trifocal& model) {
   ceres::Solver::Options options;
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
-  std::cout << summary.BriefReport() << std::endl;
+  //std::cout << summary.BriefReport() << std::endl;
   double cost = 0.0;
   problem.Evaluate(ceres::Problem::EvaluateOptions(), &cost, nullptr, nullptr,
                    nullptr);
@@ -68,14 +70,42 @@ double GeometryError(const TripleMatch data_point, Trifocal& model) {
   X << x[0], x[1], x[2], 1.0;
   Eigen::Vector3d p1 = P1 * X;
   p1 = p1 / p1(2);
-  std::cout << p1 << std::endl;
-  std::cout << data_point.I_observation << std::endl;
-  std::cout << "p1 - v1 : " << (data_point.I_observation.homogeneous()- p1).norm() << std::endl;
+  //std::cout << p1 << std::endl;
+  //std::cout << data_point.I_observation << std::endl;
+  //std::cout << "p1 - v1 : " << (data_point.I_observation.homogeneous()- p1).norm() << std::endl;
   return cost;
 }
 
-Eigen::VectorXd TrifocalSamponErrorEvaluator::Evaluate(const TripleMatch& data_point, const Trifocal& model) {
-  Eigen::VectorXd res(4);
+template<typename T>
+auto Inference(const Trifocal& model, T* lhs, T* middle, T* rhs, T* output) {
+  T lhs_[3] = {lhs[0], lhs[1], T(1.0)};
+  T middle_[3] = {middle[0],middle[1], T(1.0)};
+  T rhs_[3] = {rhs[0], rhs[1], T(1.0)};
+  
+  auto middle_skew_matrix = SkewMatrix(middle_);
+  auto rhs_skew_matrix = SkewMatrix(rhs_);
+
+  using TMat33 = Eigen::Matrix<T, 3, 3, Eigen::RowMajor>; 
+  TMat33 first, second, third;
+  for (int i = 0 ; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      first(i, j) = T(model.lhs(i, j));
+      second(i, j) = T(model.middle(i, j));
+      third(i, j) = T(model.rhs(i, j));
+    }
+  }
+  auto temp = middle_skew_matrix * (lhs[0] * first + lhs[1] * second + T(1.0) * third) * rhs_skew_matrix;
+
+  output[0] = temp(0, 0);
+  output[1] = temp(0, 1);
+  output[2] = temp(1, 0);
+  output[3] = temp(1, 1);
+
+}
+
+Eigen::Vector4d TrifocalSamponErrorEvaluator::Evaluate(const TripleMatch& data_point, const Trifocal& model) {
+  /*
+  Eigen::Vector4d res(4);
 
     Eigen::Vector3d x = data_point.I_observation.homogeneous();
     Eigen::Vector3d x_dot = data_point.J_observation.homogeneous();
@@ -100,13 +130,25 @@ Eigen::VectorXd TrifocalSamponErrorEvaluator::Evaluate(const TripleMatch& data_p
       }
     }
   }
-  return res;
+  */
+  
+  double res[4] = {0.0, 0.0, 0.0, 0.0};
+  double data[6];
+  data[0] = data_point.I_observation(0);
+  data[1] = data_point.I_observation(1);
+  data[2] = data_point.J_observation(0);
+  data[3] = data_point.J_observation(1);
+  data[4] = data_point.K_observation(0);
+  data[5] = data_point.K_observation(1);
+  Inference(model, &data[0], &data[2], &data[4], &res[0]);
+  return Eigen::Map<Eigen::Vector4d>(res);
 }
 
-  Eigen::MatrixXd TrifocalSamponErrorEvaluator::Jacobian(const TripleMatch& data_point, const Trifocal& model) {
-    Eigen::MatrixXd res(4, 6);
+  Eigen::Matrix<double, 4, 6> TrifocalSamponErrorEvaluator::Jacobian(const TripleMatch& data_point, const Trifocal& model) {
+    Eigen::Matrix<double, 4, 6> res(4, 6);
     res.setZero();
 
+    /*
     Eigen::Vector3d x = data_point.I_observation.homogeneous();
     Eigen::Vector3d x_dot = data_point.J_observation.homogeneous();
     Eigen::Vector3d x_dot_dot = data_point.J_observation.homogeneous();
@@ -159,6 +201,22 @@ Eigen::VectorXd TrifocalSamponErrorEvaluator::Evaluate(const TripleMatch& data_p
         }
       }
     }
+    */
+
+    using Jet = ceres::Jet<double, 6>;
+    ceres::Jet<double, 6> data[6];
+    data[0] = Jet(data_point.I_observation(0), 0);
+    data[1] = Jet(data_point.I_observation(1), 1);
+    data[2] = Jet(data_point.J_observation(0), 2);
+    data[3] = Jet(data_point.J_observation(1), 3);
+    data[4] = Jet(data_point.K_observation(0), 4);
+    data[5] = Jet(data_point.K_observation(1), 5);
+    Jet output[4];
+
+    Inference(model, &data[0], &data[2], &data[4], &output[0]);
+    for(int i = 0; i < 4; i++) {
+      res.row(i) = output[i].v;
+    }
     return res;
 
 
@@ -197,7 +255,7 @@ void RecoveryCameraMatrix(const Trifocal& trifocal, Mat34& P1, Mat34& P2, Mat34&
   temp << u1.transpose(), u2.transpose(), u3.transpose();
   Eigen::Vector3d epipolar_ = NullSpace(temp);
   epipolar_.normalize();
-  std::cout << "[u1, u2, u3] * e' : " << temp * epipolar_ << std::endl;
+  //std::cout << "[u1, u2, u3] * e' : " << temp * epipolar_ << std::endl;
 
   temp << v1.transpose(), v2.transpose(), v3.transpose();
   Eigen::Vector3d epipolar_2 = NullSpace(temp);
@@ -228,12 +286,13 @@ void RecoveryCameraMatrix(const Trifocal& trifocal, Mat34& P1, Mat34& P2, Mat34&
   ;
   Eigen::Matrix3d middle = a2 * b4.transpose() - a4 * b2.transpose();
   Eigen::Matrix3d rhs = a3 * b4.transpose() - a4 * b3.transpose();
-
+  /*
   std::cout << "Recovery " << std::endl;
   std::cout << trifocal.lhs - lhs << std::endl << std::endl;
   std::cout << trifocal.middle - middle << std::endl << std::endl;
   std::cout << trifocal.rhs - rhs << std::endl << std::endl;
   std::cout << "Recovery end" << std::endl;
+  */
 }
 
 void BundleRecovertyCameraMatrix(const std::vector<TripleMatch>& data_points,
@@ -287,27 +346,7 @@ void BundleRecovertyCameraMatrix(const std::vector<TripleMatch>& data_points,
       std::printf("Solution is unavailable\n");
   }
 }
-namespace {
-struct EpsilonTensor {
-  static double Get(int i, int j, int k) {
-    int v = i * 100 + j * 10 + k;
 
-    switch (v) {
-      case 123:
-      case 132:
-      case 321:
-        return 1.0;
-      case 312:
-      case 213:
-      case 231:
-        return -1.0;
-      default:
-        return 0.0;
-    }
-    return 0.0;
-  }
-};
-}  // namespace
 
 template<typename DataPointType>
 void ConstructCoeffientMatrix(const std::vector<DataPointType>& data_points, Eigen::MatrixXd& coeffient) {
@@ -471,7 +510,7 @@ void BundleRefineSolver::Fit(const std::vector<DataPointType>& data_points,
   options.max_num_iterations = 500;
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
-  std::cout << summary.BriefReport() << std::endl;
+  //std::cout << summary.BriefReport() << std::endl;
   Eigen::Vector3d b4 = P3.col(3);
   Eigen::Vector3d b3 = P3.col(2);
   Eigen::Vector3d b2 = P3.col(1);
@@ -487,11 +526,4 @@ void BundleRefineSolver::Fit(const std::vector<DataPointType>& data_points,
   model->rhs = P2.col(2) * b4.transpose() - a4 * P3.col(2).transpose();
 
   // checkout the Reprojective Error
-  double error = 0.0;
-  for (TripleMatch data_point : data_points) {
-    error = GeometryError(data_point, *model);
-  }
-
-  error /= 1.0 * data_points.size();
-  std::cout << "Bundle Trifocal average Error : " << error << std::endl;
 }

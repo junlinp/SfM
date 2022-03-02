@@ -20,20 +20,23 @@ void BundleRecovertyCameraMatrix(const std::vector<TripleMatch>& data_points,
                                  const Mat34& P2, Mat34& P3);
 
 struct TrifocalSamponErrorEvaluator {
-  static Eigen::VectorXd Evaluate(const TripleMatch& data_point, const Trifocal& model);
-  static Eigen::MatrixXd Jacobian(const TripleMatch& data_point, const Trifocal& model);
+  static Eigen::Vector4d Evaluate(const TripleMatch& data_point, const Trifocal& model);
+  static Eigen::Matrix<double, 4, 6> Jacobian(const TripleMatch& data_point, const Trifocal& model);
 };
 
-using TrifocalSamponError = SampsonBase<TrifocalSamponErrorEvaluator,
+using TrifocalSampsonError = SampsonBase<TrifocalSamponErrorEvaluator,
                               TrifocalSamponErrorEvaluator>;
-
 struct TrifocalError {
 
   // Compute the error of a data point according to the model
-  static double Error(TripleMatch data_point, Trifocal model);
+  static double Error(TripleMatch data_point, Trifocal model) { return TrifocalSampsonError::Error(data_point, model);}
 
   // Whether this error will be reject
-  static bool RejectRegion(double error);
+  static bool RejectRegion(double error) {
+    // sigma is 0.5
+    return error > 12.59 * 0.5 * 0.5;
+  }
+
 };
 
 class Typedefine {
@@ -45,7 +48,7 @@ public:
 
 class LinearSolver : public Typedefine {
  public:
- //static const size_t MINIMUM_DATA_POINT = 7;
+  //static const size_t MINIMUM_DATA_POINT = 7;
   //using DataPointType = TripleMatch;
   //using ModelType = Trifocal;
   static void Fit(const std::vector<DataPointType>& data_points, ModelType* model);

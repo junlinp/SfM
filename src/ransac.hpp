@@ -118,16 +118,10 @@ class Ransac {
           if (inlier_set.find(i) == inlier_set.end()) {
             double error = ErrorEstimator::Error(samples[i], model_candicate);
             if (!ErrorEstimator::RejectRegion(error)) {
-
               inliner_index.push_back(i);
               inlier_set.insert(i);
             }
-            /*
-            if (error < threshold) {
-              inliner_index.push_back(i);
-              inlier_set.insert(i);
-            }
-            */
+            //std::printf("Sample %d Evalute %f error\n", i, error);
           }
         }
         // epsilon = 1 - (inliners) / total_size
@@ -149,6 +143,13 @@ class Ransac {
         }
       }
       sample_count++;
+
+      if (sample_count % 32 == 0) {
+        std::printf("Max inlier %lu with Rate %f %% Until %lu\n",
+         inlier_indexs.size(),
+          inlier_indexs.size() * 1.0 / samples.size(),
+          sample_count);
+      }
     }
     return inlier_indexs.size() >= MINIMUM_DATA_POINT ? true : false;
   }

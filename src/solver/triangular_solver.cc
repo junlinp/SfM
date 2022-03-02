@@ -87,11 +87,11 @@ void BundleAdjustmentTriangular(const std::vector<Mat34>& p_matrixs, const std::
     problem_options.max_num_iterations = 500;
     ceres::Solver::Summary summary;
     ceres::Solve(problem_options, &problem, &summary);
-    std::cout << "Bundle AdjustmentTriangluar Report : " << summary.BriefReport() << std::endl;
+    //std::cout << "Bundle AdjustmentTriangluar Report : " << summary.BriefReport() << std::endl;
     X << x[0], x[1], x[2], 1.0;
 
     double cost = 0.0;
     problem.Evaluate(ceres::Problem::EvaluateOptions(), &cost, nullptr, nullptr, nullptr);
     
-    std::cout << "BundleAdjustmentTriangular Error : " << TriangularGeometryError(p_matrixs, obs, X) << std::endl;
+    //std::cout << "BundleAdjustmentTriangular Error : " << TriangularGeometryError(p_matrixs, obs, X) << std::endl;
 }

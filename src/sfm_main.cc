@@ -503,9 +503,9 @@ int main(int argc, char** argv) {
 
   std::cout << "After Filter : " << sfm_data.matches.size() << "Match " << std::endl;
 
-  RansacTrifocalSolver trifocal_solver;
+  LinearSolver trifocal_solver;
   Trifocal trifocal;
-  trifocal_solver.Fit(triple_.second, trifocal);
+  trifocal_solver.Fit(triple_.second, &trifocal);
   Mat34 P1, P2, P3;
   RecoveryCameraMatrix(trifocal, P1, P2, P3);
   std::cout << "P1 : " << P1 << std::endl;

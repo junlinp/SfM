@@ -10,6 +10,13 @@ find_package(cereal REQUIRED)
 #find_package(glog REQUIRED)
 find_package(GTest REQUIRED)
 find_package(Eigen3 REQUIRED)
+enable_testing()
+MACRO(Unit_Test NAMESPACE NAME EXTRA_LIB PATH)
+    add_executable(${NAMESPACE}_test_${NAME} ${PATH})
+    target_link_libraries(${NAMESPACE}_test_${NAME} PUBLIC ${GTEST_LIBRARIES} ${EXTRA_LIB})
+
+    add_test(${NAME} ${NAMESPACE}_test_${NAME} COMMAND $<TARGET_FILE:${NAMESPACE}_test_${NAME})
+ENDMACRO(Unit_Test)
 
 add_subdirectory(src/third_party)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -32,6 +39,8 @@ add_library(Solver
  
 target_include_directories(Solver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(Solver PUBLIC Eigen3::Eigen Ceres::ceres)
+Unit_Test(Solver trifocal_tensor_solver Solver src/solver/trifocal_tensor_solver_test.cc)
+Unit_Test(Solver self_calibration_solver Solver src/solver/self_calibration_solver_test.cc)
 
 target_include_directories(FeatureExtractor PRIVATE ${OpenCV_INCLUDE_DIRS})
 add_executable(list_image src/list_image.cpp)
