@@ -18,6 +18,12 @@ struct ReProjectiveError {
   using DataPointType = std::pair<Observation, Eigen::Vector3d>;
   static double Error(const std::pair<Observation, Eigen::Vector3d>& data_point,
                const Mat34& P);
+
+   // we assume that the point will lay in 1px with probability 99.7%
+   static bool RejectRegion(double error) {
+     return error * 0.5 * 0.5 > 5.99;
+   }
+
 };
 
 struct RansacResection {

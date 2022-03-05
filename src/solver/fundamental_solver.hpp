@@ -31,6 +31,8 @@ struct EightPointFundamentalSolverImpl {
 // 
 // Using Sampson Error to Ransac
 // will cause DLT fails.
+// chi_square_distribute[] = {
+// 0.0, 3.84, 5.99, 7.82, 9.49, 11.07, 12.59, 14.07, 15.51, 16.92, 18.31};
 //
 struct SampsonError {
   static double Error(const std::pair<Observation, Observation>& data_point,
@@ -46,6 +48,11 @@ struct SampsonError {
                   squared(rhs_f(1));
     return squared((rhs_vector.transpose() * F).dot(lhs_vector)) / deno;
                       }
+
+  static bool RejectRegion(double error) {
+    double sigma = 1.0;
+    return error * sigma * sigma > 3.84;
+  }
 };
 
 struct EpipolarLineError {
@@ -60,6 +67,11 @@ struct EpipolarLineError {
     double deno = (1.0 / (squared(lhs_f(0)) + squared(lhs_f(1)))) + (1.0 / (squared(rhs_f(0)) +
                   squared(rhs_f(1))));
     return squared((rhs_vector.transpose() * F).dot(lhs_vector)) * deno;
+  }
+
+  static bool RejectRegion(double error) {
+    double sigma = 1.0;
+    return error * sigma * sigma > 3.84;
   }
 };
 

@@ -6,6 +6,7 @@
 #define SFM_SRC_UNITTEST_HPP_
 #include <random>
 #include <vector>
+#include <cmath>
 
 #include "Eigen/Dense"
 #include "gtest/gtest.h"
@@ -350,30 +351,46 @@ struct Scene {
 
     return error / noised_observations[0].size();
   }
+template<typename T>
+  auto TrifocalConstraint(T* I_observation, T* J_observation, T* K_observation, Trifocal model) {
+    T i_ob[3] = {I_observation[0], I_observation[1], T(1.0)};
+    T j_ob[3] = {J_observation[0], J_observation[1], T(1.0)};
+    T k_ob[3] = {K_observation[0], K_observation[1], T(1.0)};
+
+    auto x_dot = SkewMatrix(j_ob);
+    auto x_dot_dot = SkewMatrix(k_ob);
+    auto temp = i_ob[0] * model.lhs + i_ob[1] * model.middle + i_ob[2] * model.rhs;
+    return x_dot * temp * x_dot_dot;
+  }
 
   double TrifocalError() {
-    std::vector<TriPair> data_points;
-    for (int i = 0; i < 7; i++) {
-      TriPair t = {observations[0][i], observations[1][i], observations[2][i]};
+    std::vector<TripleMatch> data_points;
+    size_t point_size = points.size();
+    for (int i = 0; i < point_size; i++) {
+      TripleMatch t = {0, noised_observations[0][i], 1, noised_observations[1][i], 2, noised_observations[2][i]};
       data_points.push_back(t);
     }
 
-    LinearSolver solver;
     Trifocal model;
-    solver.Fit(data_points, model);
+    LinearSolver solver;
+    solver.Fit(data_points, &model);
+    AlgebraMinimumSolver algebra_solver;
+    algebra_solver.Fit(data_points, &model);
 
     Trifocal model2;
     BundleRefineSolver bundle_solver;
-    bundle_solver.Fit(data_points, model2);
+    bundle_solver.Fit(data_points, &model2);
 
     // std::cout << model << std::endl;
 
     double error = 0.0;
     double geometry_error = 0.0;
-    for (TriPair data_point : data_points) {
-      error += Error(data_point, model);
-      geometry_error += GeometryError(data_point, model2);
+    for (TripleMatch data_point : data_points) {
+      error += TrifocalSampsonError::Error(data_point, model);
+      std::cout << "Error : " << error << std::endl;
+      //geometry_error += GeometryError(data_point, model2);
     }
+    std::cout << "Trifocal Error : " << error / data_points.size() << std::endl;
     std::cout << "Geometry Error : " << geometry_error / data_points.size()
               << std::endl;
     return error / data_points.size();
@@ -407,7 +424,7 @@ struct Scene {
     std::cout << "K * K^T : " << true_K * true_K.transpose() << std::endl;
   }
 };
-
+/*
 TEST(Fundamental, Performance) {
   double res = 0.0;
   size_t test_case = 1;
@@ -422,7 +439,7 @@ TEST(Fundamental, Performance) {
   }
   std::cout << res / test_case << std::endl;
 }
-
+*/
 TEST(Triangular, Performance_Two_Camera) {
   Scene scene(2, 2);
   std::cout << scene.TriangularError(BundleAdjustmentTriangular) << std::endl;
@@ -440,9 +457,9 @@ TEST(Triangular, Performance_Four_Camera) {
   std::cout << scene.TriangularError(BundleAdjustmentTriangular) << std::endl;
   std::cout << scene.TriangularError(DLT) << std::endl;
 }
-
+/*
 TEST(Trifocal, Test) {
-  Scene scene(3, 7);
+  Scene scene(3, 7, 1.5);
 
   std::cout << scene.TrifocalError() << std::endl;
 }
@@ -452,4 +469,5 @@ TEST(Self_Calibration, Correct) {
 
   scene.SelfCalibration();
 }
+*/
 #endif  // SFM_SRC_UNITTEST_HPP_
