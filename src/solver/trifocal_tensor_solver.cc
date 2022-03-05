@@ -455,8 +455,6 @@ void AlgebraMinimumSolver::Fit(const std::vector<DataPointType>& data_points, Mo
   // we have (0, 0, ...., 0, 1) ^T = R^T * x_dot
   Eigen::VectorXd x_dot = R.row(26);
 
-
-  // Debug
   Eigen::Matrix<double, 18, 1> a = V_E * D_E.bdcSvd(Eigen::ComputeFullU | Eigen::ComputeFullV).solve(x_dot);
 
   Eigen::Matrix<double, 27, 1> t = E * a;
