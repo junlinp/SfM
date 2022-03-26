@@ -46,11 +46,13 @@ bool DLTSolver::Fit(const std::vector<DataPointType>& data_points,
   DLT(obs, points, *model);
   return true;
 }
+namespace resection {
 
 double ReProjectiveError::Error(const DataPointType& data_point,
                                 const Mat34& P) {
   Eigen::Vector3d uv = P * data_point.second.homogeneous();
   return (data_point.first - uv.hnormalized()).squaredNorm();
+}
 }
 
 //bool RansacResection::Resection(
@@ -67,5 +69,5 @@ double ReProjectiveError::Error(const DataPointType& data_point,
 
 bool RansacResection::Resection(const std::vector<std::pair<Observation, Eigen::Vector3d>>& data_points, Mat34& P, std::vector<size_t>* inliers_index) {
   std::vector<size_t> placeholder;
-  return Ransac<DLTSolver, ReProjectiveError>::Inference(data_points, inliers_index == nullptr ? placeholder : *inliers_index, &P);
+  return Ransac<DLTSolver, resection::ReProjectiveError>::Inference(data_points, inliers_index == nullptr ? placeholder : *inliers_index, &P);
 }

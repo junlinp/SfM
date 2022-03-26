@@ -35,12 +35,15 @@ add_library(Solver
  src/solver/triangular_solver.cc
  src/solver/trifocal_tensor_solver.cc
  src/solver/self_calibration_solver.cc
- src/solver/resection_solver.cc)
+ src/solver/resection_solver.cc
+ src/solver/epnp_solver.cc
+ )
  
 target_include_directories(Solver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(Solver PUBLIC Eigen3::Eigen Ceres::ceres)
 Unit_Test(Solver trifocal_tensor_solver Solver src/solver/trifocal_tensor_solver_test.cc)
 Unit_Test(Solver self_calibration_solver Solver src/solver/self_calibration_solver_test.cc)
+Unit_Test(Solver epnp_solver Solver src/solver/epnp_solver_test.cc)
 
 target_include_directories(FeatureExtractor PRIVATE ${OpenCV_INCLUDE_DIRS})
 add_executable(list_image src/list_image.cpp)
@@ -57,7 +60,7 @@ target_link_libraries(FeatureMatch PRIVATE SfMData)
 add_executable(FeatureMatch_main src/feature_match_main.cc)
 target_link_libraries(FeatureMatch_main PRIVATE FeatureMatch SfMData)
 
-add_executable(SFM_main src/sfm_main.cc src/projective_constructure.cc)
+add_executable(SFM_main src/sfm_main.cc src/euclidean_constructure.cc)
 target_link_libraries(SFM_main PRIVATE SfMData Eigen3::Eigen Solver)
 
 add_executable(DrawMatch_main src/draw_match_main.cc)

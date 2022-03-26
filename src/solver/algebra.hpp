@@ -7,10 +7,9 @@
 template<typename Derived>
 Eigen::VectorXd NullSpace(const Derived& m) {
   size_t col = m.cols();
-
-  Eigen::JacobiSVD svd(m, Eigen::ComputeFullV);
-
-  return svd.matrixV().col(col - 1);
+  Eigen::BDCSVD svd(m, Eigen::ComputeFullV | Eigen::ComputeFullU);
+  Eigen::VectorXd res = svd.matrixV().col(col - 1);
+  return res;
 }
 
 template<typename T>
@@ -54,20 +53,33 @@ template<typename ConstraintEvaluator, typename ConstraintJacobianEvaluator>
 struct SampsonBase {
     template<typename Model, typename DataPoint>
     static double Error(DataPoint data_point, const Model& model) {
-        auto epsilon = ConstraintEvaluator::Evaluate(data_point, model);
+        Eigen::VectorXd epsilon = ConstraintEvaluator::Evaluate(data_point, model);
         //std::cout << "Epsilon in Sampson : " << epsilon << std::endl;
         auto jacobian = ConstraintJacobianEvaluator::Jacobian(data_point, model);
         Eigen::MatrixXd JJT = jacobian * jacobian.transpose();
         //std::cout << "JJT : " << JJT << std::endl;
         //std::cout << "JJT LLT : " << JJT.ldlt().solve(epsilon) << std::endl;
         //std::cout << JJT.bdcSvd().singularValues() << std::endl;
-        using Solver = Eigen::LDLT<Eigen::MatrixXd>;
+        using Solver = Eigen::FullPivHouseholderQR<Eigen::MatrixXd>;
         Solver solver;
         solver.compute(JJT);
         auto solution = solver.solve(epsilon);
         //std::cout << "Solution : " << solution << std::endl;
         //std::cout << "Delta : " << -jacobian.transpose() * solution << std::endl;
         return epsilon.dot(solution);
+    }
+
+    template<typename Model, typename DataPoint>
+    static Eigen::VectorXd CorrectedPoint(DataPoint data_point, const Model& model) {
+
+        auto epsilon = ConstraintEvaluator::Evaluate(data_point, model);
+        auto jacobian = ConstraintJacobianEvaluator::Jacobian(data_point, model);
+        Eigen::MatrixXd JJT = jacobian * jacobian.transpose();
+        using Solver = Eigen::LDLT<Eigen::MatrixXd>;
+        Solver solver;
+        solver.compute(JJT);
+        auto solution = solver.solve(epsilon);
+        return -jacobian.transpose() * solution;
     }
 };
 
@@ -90,4 +102,44 @@ static constexpr double data[3][3][3] = {
         return 0.0;
     }
 };
+
+
+inline Eigen::Matrix3d NormalizedCenter(const Eigen::Matrix<double, 2, 8>& data) {
+  Eigen::Matrix<double, 2, 1> center = data.rowwise().mean();
+  size_t n = data.cols();
+  double normal = (data.colwise() - center).colwise().norm().sum();
+
+  double alpha = n * std::sqrt(2.0) / normal;
+  Eigen::Matrix3d res;
+  res << alpha ,     0.0, -alpha * center(0),
+         0.0   ,   alpha, -alpha * center(1),
+         0.0   ,     0.0, 1.0;
+  return res;
+}
+
+inline Eigen::Matrix3d NormalizedCenter(const Eigen::MatrixXd data) {
+    Eigen::VectorXd center = data.rowwise().mean();
+    size_t n = data.cols();
+    double normal = (data.colwise() - center).colwise().norm().sum();
+
+    double alpha = n * std::sqrt(2.0) / normal;
+
+
+    Eigen::Matrix3d res;
+    res << alpha ,     0.0, -alpha * center(0),
+           0.0   ,   alpha, -alpha * center(1),
+           0.0   ,     0.0, 1.0;
+    return res;
+}
+
+inline Eigen::MatrixXd KrockerProduct(Eigen::MatrixXd lhs, Eigen::MatrixXd rhs) {
+    Eigen::MatrixXd res(lhs.rows() * rhs.rows(), lhs.cols() * rhs.cols());
+
+    for (int row = 0; row < lhs.rows(); row++) {
+        for (int col = 0; col < lhs.cols(); col++) {
+            res.block(row * rhs.rows(), col * rhs.cols(), rhs.rows(), rhs.cols()) = lhs(row, col) * rhs;
+        }
+    }
+    return res;
+}
 #endif  // SRC_SOLVER_ALGEBRA_HPP_
