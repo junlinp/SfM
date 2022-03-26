@@ -105,6 +105,7 @@ class RansacEightPointFundamentalSolverInterface : public FundamentalSolverInter
     return Ransac<EightPointFundamentalSolverImpl, EpipolarLineError>::Inference(
         data_points, placeholder, &models);
   }
+
 };
 
 using EightPointFundamentalSolver = RansacEightPointFundamentalSolverInterface;

@@ -4,6 +4,8 @@
 #include <vector>
 #include <set>
 #include "eigen_alias_types.hpp"
+#include "ceres/rotation.h"
+
 /*
 struct ParameterBlock {
   double* ptr_;
@@ -66,7 +68,8 @@ public:
 
 
 struct ConstCameraMatrixCostFunctor {
-        ConstCameraMatrixCostFunctor(const Mat34& p_matrixs,const Eigen::Vector3d& obs) : p_matrixs_(p_matrixs), obs_(obs) {}
+        explicit ConstCameraMatrixCostFunctor(const Mat34& p_matrixs,const Eigen::Vector3d& obs) : p_matrixs_(p_matrixs), obs_(obs) {}
+        explicit ConstCameraMatrixCostFunctor(const Mat34& p_matrixs,const Eigen::Vector2d& obs) : p_matrixs_(p_matrixs), obs_(obs.homogeneous()) {}
         Mat34 p_matrixs_;
         Eigen::Vector3d obs_;
         // X is 3-dimensional vector
@@ -87,7 +90,8 @@ struct ConstCameraMatrixCostFunctor {
     };
 struct CostFunctor {
   Eigen::Vector3d obs_;
-  CostFunctor(const Eigen::Vector3d& obs_) : obs_(obs_) {}
+  explicit CostFunctor(const Eigen::Vector3d& obs_) : obs_(obs_) {}
+  explicit CostFunctor(const Eigen::Vector2d& obs_) : obs_(obs_.homogeneous()) {}
 
   template<typename T>
   bool operator()(const T* P, const T* X, T* output) const {
@@ -105,6 +109,50 @@ struct CostFunctor {
     output[0] = product[0] - T(obs_(0));
     output[1] = product[1] - T(obs_(1));
     return true;
+  }
+};
+
+
+template<typename T>
+bool ReProjectiveCostFunction(const T* fx,const T*fy,const T*cx,const T*cy,const T* angle_axis,const T* center,const T* X,const T* obs, T* res) {
+  T x[3] = {X[0] - center[0], X[1] - center[1], X[2] - center[2]};
+  T x_[3] = {T(0.0)};
+  ceres::AngleAxisRotatePoint(angle_axis, x, x_);
+
+  T u = fx[0] * x_[0] / x_[2] + cx[0];
+  T v = fy[0] * x_[1] / x_[2] + cy[0];
+
+  res[0] = u - obs[0];
+  res[1] = v - obs[1];
+  return true;
+}
+
+
+struct ConstRCCostFunctor {
+  double angle_axis[3];
+  double center[3];
+  double obs[2];
+
+  ConstRCCostFunctor(double* angle_axis, double* center, double* obs)
+      : angle_axis{angle_axis[0], angle_axis[1], angle_axis[2]}, center{center[0], center[1], center[2]}, obs{obs[0], obs[1]} {};
+
+  template<typename T>
+  bool operator()(const T* K,const T* X, T* residual) const {
+    const T T_angle_axis[3] = {T(angle_axis[0]),T(angle_axis[1]),T(angle_axis[2])};
+    const T T_center[3] = {T(center[0]),T(center[1]),T(center[2])};
+    const T T_obs[2] = {T(obs[0]),T(obs[1])};
+
+    return ReProjectiveCostFunction(K, K + 1, K + 2, K + 3, T_angle_axis, T_center, X, T_obs, residual);
+  }
+};
+
+struct FreeCostFunctor {
+  double obs[2];
+  FreeCostFunctor(double* obs) : obs{obs[0], obs[1]} {};
+  template<typename T>
+  bool operator()(const T* K, const T* angle_axis, const T* center, const T* X, T* residual) const {
+    const T T_obs[2] = {T(obs[0]),T(obs[1])};
+    return ReProjectiveCostFunction(K, K + 1, K + 2, K + 3, angle_axis, center, X, T_obs, residual);
   }
 };
 

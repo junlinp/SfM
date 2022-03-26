@@ -30,7 +30,7 @@ class IterativeSolver {
 public:
     IterativeSolver(double fx = 1.0, double fy = 1.0, double cx = 0.0, double cy = 0.0, double px = 0.0, double py = 0.0, double pz = 0.0) : 
     parameters{fx, fy,px, py, pz}, cx{cx}, cy{cy} {}
-    bool Solve(std::vector<Mat34>& Ps);
+    bool Solve(const std::vector<Mat34>& Ps);
 
     Mat33 K();
 

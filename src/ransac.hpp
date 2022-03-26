@@ -105,8 +105,6 @@ class Ransac {
       }
       // Compute model
       Kernel::Fit(temp_sample, models);
-      double sigma = 1.0;
-      //double threshold = chi_square_distribute[MODEL_FREEDOM] * sigma * sigma;
       // Compute inliers
       for (MODEL_TYPE model_candicate : models) {
         std::vector<size_t> inliner_index;

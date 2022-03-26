@@ -14,6 +14,7 @@ struct DLTSolver {
   static bool Fit(const std::vector<DataPointType>& data_points, MODEL_TYPE* model);
 };
 
+namespace resection {
 struct ReProjectiveError {
   using DataPointType = std::pair<Observation, Eigen::Vector3d>;
   static double Error(const std::pair<Observation, Eigen::Vector3d>& data_point,
@@ -25,6 +26,7 @@ struct ReProjectiveError {
    }
 
 };
+}
 
 struct RansacResection {
   //bool Resection(const std::vector<Observation>& observations,

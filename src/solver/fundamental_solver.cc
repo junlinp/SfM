@@ -3,25 +3,13 @@
 //
 
 #include "fundamental_solver.hpp"
+#include "algebra.hpp"
 
 #include <cassert>
 #include <iostream>
 // TODO (junlinp) :
 // Error will not be zero for the samples used to Fit the model.
 
-Eigen::Matrix3d Normal(const Eigen::Matrix<double, 2, 8>& data) {
-
-  Eigen::Matrix<double, 2, 1> center = data.rowwise().mean();
-  size_t n = data.cols();
-  double normal = (data.colwise() - center).colwise().norm().sum();
-
-  double alpha = n * std::sqrt(2.0) / normal;
-  Eigen::Matrix3d res;
-  res << alpha ,     0.0, -alpha * center(0),
-         0.0   ,   alpha, -alpha * center(1),
-         0.0   ,     0.0, 1.0;
-  return res;
-}
 
 void FitImpl(const Eigen::Matrix<double, 3, 8>& lhs,const Eigen::Matrix<double, 3, 8>& rhs, Mat33* models) {
   Eigen::Matrix<double, 8, 9> A;
@@ -70,8 +58,8 @@ void FitImpl(const Eigen::Matrix<double, 2, 8>& lhs,const Eigen::Matrix<double, 
   Eigen::Matrix<double, 3, 8> lhs_homogous = lhs.colwise().homogeneous();
   Eigen::Matrix<double, 3, 8> rhs_homogous = rhs.colwise().homogeneous();
 
-  Eigen::Matrix3d T = Normal(lhs);
-  Eigen::Matrix3d T_dot = Normal(rhs);
+  Eigen::Matrix3d T = NormalizedCenter(lhs);
+  Eigen::Matrix3d T_dot = NormalizedCenter(rhs);
 
   //lhs_homogous = T * lhs_homogous;
   //rhs_homogous = T_dot * rhs_homogous;

@@ -1,7 +1,10 @@
+#ifndef SRC_CONTRUCTURE_HPP_
+#define SRC_CONTRUCTURE_HPP_
+
 #include "sfm_data.hpp"
 #include <unordered_set>
-
-//#include "euclidean_structure.hpp"
+#include "trifocal_tensor.hpp"
+#include "pose.hpp"
 
 // forward declaration
 struct Track {
@@ -121,6 +124,8 @@ class TrackBuilder {
     std::vector<bool> tracks_valid_;
     public:
     void InsertMatch(Pair pair, Matches connected_matches);
+    void InsertTriple(TripleIndex triple_index, TripleMatch match, Eigen::Vector3d X);
+
     bool FeatureExists(IndexT image_idx, IndexT feature_idx) const;
     bool FeatureExists(int64_t hash_code) const;
     size_t GetTrackId(int64_t hash_code) const;
@@ -133,60 +138,66 @@ class TrackBuilder {
 
 };
 
-class ProjectiveStructure {
+struct InternalParameter {
+  // fx, fy, cx, cy
+  double parameter[4];
+
+  double* data() {
+    return &parameter[0];
+  }
+
+  InternalParameter& operator=(const Mat33& K) {
+    parameter[0] = K(0, 0);
+    parameter[1] = K(1, 1);
+    parameter[2] = K(0, 2);
+    parameter[3] = K(1, 2);
+    return *this;
+  }
+
+  Mat33 K() {
+    Mat33 k;
+    k << parameter[0], 0, parameter[2],
+    0, parameter[1], parameter[3],
+    0, 0, 1;
+    return k;
+  }
+};
+
+class EuclideanStructure {
     // the index of identity camera matrix.
     IndexT const_camera_matrix_index;
 
     std::set<IndexT> image_ids;
     std::set<IndexT> remainer_ids;
 
-    std::map<IndexT, Mat34> extrinsic_parameters;
-
     TrackBuilder track_builder;
-
     std::map<Pair, Matches> all_matches;
 
     Matches GetMatches(IndexT constructed_id, IndexT need_to_register_id) const;
 
-    Mat34 PMatrix(IndexT image_id) const;
-public:
-    ProjectiveStructure(SfMData& sfm_data);
+    auto BundleAdjustmentProblem();
 
-    void InitializeStructure(const Pair& initial_pair, Matches& inlier_matches, Mat34& P1, Mat34& P2);
+    InternalParameter K_;
+
+    std::map<IndexT, Pose> poses;
+    const SfMData& sfm_data_;
+
+    void InitializeStructure();
+    void IncrementalRegister();
+public:
+    EuclideanStructure(const SfMData& sfm_data);
+    
+    void StartReconstruction();
 
     Correspondence FindCorrespondence(IndexT image_id) const; 
 
-    std::vector<Mat34> GetPMatrix() const {
-      std::vector<Mat34> res;
-      res.reserve(extrinsic_parameters.size());
-      for (auto&& [first, second] : extrinsic_parameters) {
-        res.push_back(second);
-      }
-      return res;
-    }
-
-    void ApplyQMatrix(const Eigen::Matrix4d& Q) {
-      // Compute the eigen value and eigen vector
-      // LDLT
-      Eigen::Matrix4d H  = Q.ldlt().matrixU();
-      auto track_ptrs = track_builder.AllTrack();
-
-      // update 
-      for (auto ptr : track_ptrs) {
-        Eigen::Vector4d temp = H.inverse() * ptr->X.homogeneous();
-        ptr->X = temp.hnormalized();
-      }
-
-    }
-
-    //EuclideanStructure CameraCalibration();
-
     IndexT NextImage() const;
-    void UnRegister(IndexT image_id);
-    void Register(IndexT image_id, Mat34 P, Correspondence correspondence);
+    //void UnRegister(IndexT image_id);
+    void Register(IndexT image_id, Pose P, Correspondence correspondence);
     void TriangularNewPoint(IndexT image_id);
     void LocalBundleAdjustment();
     std::vector<Track> GetTracks() const;
 
     // UnionFindSet
 };
+#endif // SRC_CONTRUCTURE_HPP_

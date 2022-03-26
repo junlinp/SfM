@@ -174,7 +174,7 @@ ceres::CostFunction* MinimumCostFunction(Args... args) {
 // Bibliography
 // <Self-Calibration from the Absolute Conic on the Plane at Infinity>
 // Marc Pollefeys and Luc Van Gool
-bool IterativeSolver::Solve(std::vector<Mat34>& Ps) {
+bool IterativeSolver::Solve(const std::vector<Mat34>& Ps) {
 
   ceres::Problem problem;
  for (int i = 1; i < Ps.size(); i++) {
@@ -188,7 +188,7 @@ bool IterativeSolver::Solve(std::vector<Mat34>& Ps) {
   ceres::Solver::Summary summary;
 
   ceres::Solve(options, &problem, &summary);
-  std::cout << summary.BriefReport() << std::endl;
+  std::cout << "Self Calibration : " << std::endl << summary.BriefReport() << std::endl;
 
   parameters[0] = std::abs(parameters[0]);
   parameters[1] = std::abs(parameters[1]);
