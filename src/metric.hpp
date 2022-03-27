@@ -3,7 +3,7 @@
 
 #include <cmath>
 #include "immintrin.h"
-
+#include <bitset>
 struct support_avx {
     #ifdef __AVX2__
     static const bool value = true;
@@ -12,7 +12,7 @@ struct support_avx {
     #endif
 };
 
-float L2_metric_trivial(float* lhs, float* rhs) {
+inline float L2_metric_trivial(const float* lhs,const float* rhs) {
   float sum = 0.0f;
   for (int i = 0; i < 128; i++) {
     float temp = lhs[i] - rhs[i];
@@ -48,14 +48,22 @@ float L2_metric_avx(float* lhs, float* rhs) {
 }
 */
 
-inline float L2_metric_aux(float* lhs, float* rhs) {
+inline float L2_metric_aux(const float* lhs,const float* rhs) {
     //if (constexpr support_avx::value) {
     //    return L2_metric_avx(lhs, rhs);
     //}
     return L2_metric_trivial(lhs, rhs);
 }
 
-float L2_metric(float* lhs, float* rhs) {
+inline float L2_metric(const float* lhs,const float* rhs) {
     return L2_metric_aux(lhs, rhs);
+}
+template<unsigned long N>
+int HammingDistance(std::bitset<N> lhs, std::bitset<N> rhs) {
+  int count = 0;
+  for (int i = 0; i < N; i++) {
+    count += lhs[i] ^ rhs[i];
+  }
+  return count;
 }
 #endif  // SRC_METRIC_HPP_
