@@ -53,9 +53,10 @@ add_executable(FeatureExtractor_main src/feature_extractor_main.cc)
 target_link_libraries(FeatureExtractor_main PRIVATE FeatureExtractor)
 
 
-add_library(FeatureMatch src/feature_matcher/brute_force_matcher.cc src/feature_matcher/exhaustive_pair_builder.cc)
+add_library(FeatureMatch src/feature_matcher/brute_force_matcher.cc src/feature_matcher/exhaustive_pair_builder.cc src/feature_matcher/cascade_hash_matcher.cc)
 target_include_directories(FeatureMatch PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(FeatureMatch PRIVATE SfMData)
+Unit_Test(Matcher match FeatureMatch src/feature_matcher/match_test.cc)
 
 add_executable(FeatureMatch_main src/feature_match_main.cc)
 target_link_libraries(FeatureMatch_main PRIVATE FeatureMatch SfMData)

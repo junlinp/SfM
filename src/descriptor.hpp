@@ -16,8 +16,12 @@ private:
 public:
     Descriptors() = default;
 
-    size_t size() {
+    size_t size() const {
       return raw_data.size() / 128;
+    }
+
+    const float* data() const{
+      return raw_data.data();
     }
 
     float* data() {
