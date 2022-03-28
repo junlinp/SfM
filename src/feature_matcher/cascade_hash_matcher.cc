@@ -5,6 +5,7 @@
 #include <unordered_set>
 
 #include "Eigen/Dense"
+#include "internal/thread_pool.hpp"
 #include "metric.hpp"
 
 using namespace Eigen;
@@ -167,39 +168,46 @@ void CascadeHashMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs,
     hash_descriptors_[index] =
         ConstructHashDescriptors(sfm_data.descriptors[index], zero_mean_vector);
   }
-
+  ThreadPool thread_pool;
+  std::mutex sfm_data_mutex;
   for (auto [lhs_index, rhs_index] : pairs) {
-    Matches matches = DescriptorMath(
-        hash_descriptors_[lhs_index], sfm_data.descriptors[lhs_index],
-        hash_descriptors_[rhs_index], sfm_data.descriptors[rhs_index]);
-    if (is_corss_valid) {
-      Matches reverse_matches = DescriptorMath(
-          hash_descriptors_[rhs_index], sfm_data.descriptors[rhs_index],
-          hash_descriptors_[lhs_index], sfm_data.descriptors[lhs_index]);
+    auto task = [&sfm_data, this,
+                  &sfm_data_mutex](IndexT lhs_index, IndexT rhs_index, bool is_cross_valid) {
+      Matches matches = DescriptorMath(
+          hash_descriptors_[lhs_index], sfm_data.descriptors[lhs_index],
+          hash_descriptors_[rhs_index], sfm_data.descriptors[rhs_index]);
+      if (is_cross_valid) {
+        Matches reverse_matches = DescriptorMath(
+            hash_descriptors_[rhs_index], sfm_data.descriptors[rhs_index],
+            hash_descriptors_[lhs_index], sfm_data.descriptors[lhs_index]);
 
-      std::unordered_map<IndexT, IndexT> reverse_map;
-      for (struct Match& m : reverse_matches) {
-        reverse_map[m.lhs_idx] = m.rhs_idx;
-      }
-
-      Matches temp(matches.size());
-      for (struct Match& m : matches) {
-        if (reverse_map.find(m.rhs_idx) != reverse_map.end() &&
-            reverse_map.at(m.rhs_idx) == m.lhs_idx) {
-          temp.push_back(m);
+        std::unordered_map<IndexT, IndexT> reverse_map;
+        for (struct Match& m : reverse_matches) {
+          reverse_map[m.lhs_idx] = m.rhs_idx;
         }
-      }
-      matches.swap(temp);
-    }
-    Pair p{lhs_index, rhs_index};
-    call_back_(p, matches);
-    for (struct Match& m : matches) {
-      KeyPoint& lhs_keypoint = sfm_data.key_points[lhs_index][m.lhs_idx];
-      KeyPoint& rhs_keypoint = sfm_data.key_points[rhs_index][m.rhs_idx];
-      m.lhs_observation = Observation(lhs_keypoint.x, lhs_keypoint.y);
-      m.rhs_observation = Observation(rhs_keypoint.x, rhs_keypoint.y);
-    }
 
-    sfm_data.matches[{lhs_index, rhs_index}] = matches;
+        Matches temp(matches.size());
+        for (struct Match& m : matches) {
+          if (reverse_map.find(m.rhs_idx) != reverse_map.end() &&
+              reverse_map.at(m.rhs_idx) == m.lhs_idx) {
+            temp.push_back(m);
+          }
+        }
+        matches.swap(temp);
+      }
+      Pair p{lhs_index, rhs_index};
+      call_back_(p, matches);
+      for (struct Match& m : matches) {
+        KeyPoint& lhs_keypoint = sfm_data.key_points[lhs_index][m.lhs_idx];
+        KeyPoint& rhs_keypoint = sfm_data.key_points[rhs_index][m.rhs_idx];
+        m.lhs_observation = Observation(lhs_keypoint.x, lhs_keypoint.y);
+        m.rhs_observation = Observation(rhs_keypoint.x, rhs_keypoint.y);
+      }
+      {
+        std::lock_guard<std::mutex> lk(sfm_data_mutex);
+        sfm_data.matches[{lhs_index, rhs_index}] = matches;
+      }
+    };
+    thread_pool.Enqueue(task, lhs_index, rhs_index, is_corss_valid);
   }
 }
