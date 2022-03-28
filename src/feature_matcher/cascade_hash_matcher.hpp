@@ -4,6 +4,7 @@
 #include <bitset>
 #include <unordered_map>
 #include <vector>
+#include <functional>
 
 #include "feature_matcher_interface.hpp"
 
@@ -25,6 +26,9 @@ class CascadeHashMatcher : public FeatureMatcherInterface {
  public:
   void Match(SfMData& sfm_data, const std::set<Pair>& pairs,
              bool is_corss_valid = true) override;
+             void SetCallBack(std::function<void(Pair&, Matches&)> call_back) {
+               call_back_ = call_back;
+             }
   virtual ~CascadeHashMatcher() = default;
 
  private:
@@ -37,7 +41,7 @@ class CascadeHashMatcher : public FeatureMatcherInterface {
   std::unordered_map<IndexT, HashDescriptors> hash_descriptors_;
   Eigen::MatrixXf primary_hash_project;
   std::vector<Eigen::MatrixXf> secondary_hash_project;
-
+  std::function<void(Pair&, Matches&)> call_back_;
   int bucket_group_size;
   int bits_of_group;
   int hash_code_size;

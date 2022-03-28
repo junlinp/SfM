@@ -3,7 +3,7 @@
 #include "feature_matcher/exhaustive_pair_builder.hpp"
 #include "feature_matcher/brute_force_matcher.hpp"
 #include "feature_matcher/cascade_hash_matcher.hpp"
-
+#include <atomic>
 int main(int argc, char** argv) {
     if (argc != 2) {
         return 1;
@@ -25,7 +25,14 @@ int main(int argc, char** argv) {
 
     //auto Matcher = std::make_shared<BruteForceMatcher>();
     auto Matcher = std::make_shared<CascadeHashMatcher>();
-    Matcher->Match(sfm_data, pairs);
+    size_t total_piar_size = pairs.size();
+    std::atomic<size_t> finished_count(0);
+    auto call_back = [total_piar_size, &finished_count](Pair& pair, Matches& matches) {
+        finished_count++;
+        std::printf("Pair [%lld, %lld] With %lu Matches \t\t %f %%\n", pair.first, pair.second, matches.size(), 100.0 * finished_count / total_piar_size);
+    };
+    Matcher->SetCallBack(call_back);
+    Matcher->Match(sfm_data, pairs, true);
 
     Save(sfm_data, argv[1]);
 

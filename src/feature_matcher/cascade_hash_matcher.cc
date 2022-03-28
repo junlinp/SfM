@@ -163,12 +163,10 @@ void CascadeHashMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs,
     total_size += descriptor_size;
   }
   zero_mean_vector /= total_size;
-  std::cout << "mean " << std::endl;
   for (IndexT index : index_set) {
     hash_descriptors_[index] =
         ConstructHashDescriptors(sfm_data.descriptors[index], zero_mean_vector);
   }
-  std::cout << "Create Descriptors Finish" << std::endl;
 
   for (auto [lhs_index, rhs_index] : pairs) {
     Matches matches = DescriptorMath(
@@ -193,7 +191,8 @@ void CascadeHashMatcher::Match(SfMData& sfm_data, const std::set<Pair>& pairs,
       }
       matches.swap(temp);
     }
-    std::cout << "Piar : [" << lhs_index << "," << rhs_index << "] " << matches.size() << " Matches." << std::endl;
+    Pair p{lhs_index, rhs_index};
+    call_back_(p, matches);
     for (struct Match& m : matches) {
       KeyPoint& lhs_keypoint = sfm_data.key_points[lhs_index][m.lhs_idx];
       KeyPoint& rhs_keypoint = sfm_data.key_points[rhs_index][m.rhs_idx];
